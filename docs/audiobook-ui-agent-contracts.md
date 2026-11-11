@@ -47,3 +47,37 @@
 | W（前端） | `web/**` | `internal/**` |
 
 合并顺序 G → W：前端要调的方法必须先存在。
+
+---
+
+# 第二轮补充：kind 编辑、成片改派、导入自检
+
+依据是旧流程的实测（见 `docs/audiobook-legacy-pipeline.md` 第六节）：1,382 条人工修正里
+**170 条改了 kind**，且错误常成片出现。只支持"逐行改说话人"覆盖不到这两类。
+
+## 一、Go（车道 G）
+
+1. `ReassignCue(draftID, cueID, speakerID, kind string)` —— 增加第四个参数：
+   `kind` 为空表示不改；非空且不是 `narration`/`dialogue`/`thought` 时返回校验错误。
+   仍然**同一事务内清空 `confidence`**。
+2. `ReassignCues(draftID string, cueIDs []string, speakerID, kind string) (int, error)` —— 成片改派：
+   一次加锁、批量应用、返回改变条数；`cueIDs` 为空返回 0，不报错；任一句不存在则整批拒绝（不做部分写入）。
+3. RPC `draft.reassignCues`：入参 `{id string, cueIds []string, speakerId string, kind string}`，返回 `{changed int}`。
+4. 助手工具 `reassign_cue` 增加可选 `kind`，并新增 `cue_ids` 数组支持成片改派；描述里写清
+   "整段判错时用 cue_ids 一次改完，不要逐句调用"。
+
+## 二、前端（车道 W）
+
+1. **kind 编辑**：阅读页在改派之外能改 kind，键位用 `D`（对白）/`N`（叙述）/`T`（心声），
+   与现有 `1–9`/`0` 不冲突；改 kind 同样清空 `confidence`。
+2. **成片改派**：`V` 进入选区模式，`J`/`K` 扩展选区，回车后弹出一个动作条（设为某说话人 / 设为某类型），
+   调用 `draft.reassignCues`。RPC 不可用时降级为逐条本地修改并提示。
+3. **导入自检**：导入后在章节列表旁标出三类异常（对齐 `audit_dialogue.py` 的口径）：
+   `MISSED?` 原文有引号但对白为 0、`THIN?` 明显少于引号对数、`FABRICATED?` 原文无引号却有对白。
+   只提示，不阻止导入。
+4. **锚点长度告警**：角色页对 `voice.duration > 10` 秒的锚点显示警告——超过约 10 秒会让每行
+   静默退回 eager，RTF 从 0.44 变约 1.9（见 ADR-0003 更正）。
+
+## 三、边界
+
+同前：G 只改 `internal/**`，W 只改 `web/**`；合并顺序 G → W。
