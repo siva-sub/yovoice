@@ -8,10 +8,11 @@ import (
 	"testing"
 )
 
-// pendingUILane 是界面车道尚未补齐的文案：B 车道临时豁免（本次运行 6756f51b），
-// 父车道在 C 合并后移除此项、补齐 zh-cn 文案并重新生成 skills/yovoice-product/SKILL.md。
+// pendingUILane 是界面车道尚未补齐的文案：本次 Go 渲染车道先在后端新增错误码，
+// 父车道在界面车道合并后移除本项、补齐 zh-cn 文案并重新生成 skills/yovoice-product/SKILL.md。
 var pendingUILane = map[string]bool{
-	"@yovoice.error.chapterNotVerified": true,
+	"@yovoice.error.chapterNotVerified":   true,
+	"@yovoice.error.renderBudgetExceeded": true,
 }
 
 // yovoice-product 的错误码一节由 internal/msg 的错误码与界面中文文案生成，保证与界面一致。
