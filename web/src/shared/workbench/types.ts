@@ -26,7 +26,12 @@ export interface SynthesisSettings {
 }
 export interface SubtitleSpeaker { id: string; sourceName: string; characterId?: string; settings?: SynthesisSettings }
 export interface CharacterPerformance { id: string; name: string; settings: SynthesisSettings }
-export interface SubtitleCue { performance?: CharacterPerformance; id?: string; start: number; end: number; text: string; speakerId: string }
+// 归因证据：confidence 为 0..1，人工改派或接受后清空；evidence 说明依据，kind 是句子类型（见 docs/audiobook-contracts.md）。
+export interface SubtitleCue { performance?: CharacterPerformance; id?: string; start: number; end: number; text: string; speakerId: string; confidence?: number; evidence?: string; kind?: string }
+/** 闸门：一章的正文是否读过、归因与校验过；textSha 是正文摘要，状态见 docs/adr/0001-attribution-gate.md。 */
+export interface Gate { note?: string; status: 'pending' | 'read' | 'attributed' | 'verified'; textSha: string; verifiedAt?: string }
+/** 书：多章作品按书归组，与 Go 的 schema.Book 一致。 */
+export interface Book { id: string; title: string; seriesId?: string; order?: number; loudnessTarget?: string; createdAt?: string; updatedAt?: string }
 export interface SubtitleDocument { speakers: SubtitleSpeaker[]; cues: SubtitleCue[] }
 export interface AudioClip { id: string; generationId?: string; assetId?: string; start: number; offset: number; duration: number; gainDb?: number }
 export interface AudioLane { id: string; name: string; muted: boolean; solo?: boolean; locked?: boolean; gainDb?: number; duckDb?: number; clips: AudioClip[] }
@@ -42,7 +47,7 @@ export interface ScoreTrack { id: string; name: string; role?: ScoreRole; progra
 export interface ScoreSection { name: string; start: number; end: number; tempo?: number }
 export interface Score { tempo: number; timeSignature: number[]; key?: string; sections?: ScoreSection[]; tracks: ScoreTrack[] }
 export type ProjectKind = 'text' | 'story' | 'subtitle' | 'music' | 'score' | 'sfx';
-export interface Draft extends SynthesisSettings { performance?: CharacterPerformance; id: string; title: string; text: string; kind?: ProjectKind; characterId?: string; createdAt?: string; updatedAt?: string; subtitles?: SubtitleDocument; timeline?: AudioTimeline; score?: Score }
+export interface Draft extends SynthesisSettings { performance?: CharacterPerformance; id: string; title: string; text: string; kind?: ProjectKind; characterId?: string; createdAt?: string; updatedAt?: string; subtitles?: SubtitleDocument; timeline?: AudioTimeline; score?: Score; gate?: Gate; bookId?: string }
 export type ProjectPage = 'text' | 'story' | 'music' | 'score' | 'sfx';
 export interface CharacterPreview { id: string; fileName: string; duration: number; settings: SynthesisSettings; text: string }
 export interface Character { performances?: CharacterPerformance[]; id: string; name: string; settings: SynthesisSettings; demoText: string; preview?: CharacterPreview; createdAt?: string; updatedAt?: string }
@@ -132,6 +137,8 @@ export interface State {
   assistantSessions?: AssistantSessions; assistantLive?: AssistantLive; assistantMemory?: AssistantMemo[];
   /** state.get 附带的随包 AI 助手运行时可用性：缺失时 AI 写作入口禁用。 */
   assistantMissing?: boolean;
+  /** 书列表，与 Go 的 schema.State.Books 一致。 */
+  books?: Book[];
 }
 
 // 引擎写出的旋律谱，与 Go 的 schema.MelodyResult 一致：plan 为按歌词出谱，cover 为从歌曲扒谱；只在本次会话有效。
