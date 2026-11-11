@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "Reparto"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "Listar capítulos pendientes"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "Enumera los capítulos de la estantería que aún necesitan lectura, verificación, renderizado o control de calidad, ordenados por libro y número de capítulo"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "¿Qué toca ahora?"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "Dime las tres próximas tareas de la estantería y por qué"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "Verificar este capítulo"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "Verifica la asignación de voces de este capítulo y enumera las líneas de baja confianza"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "Buscar líneas sospechosas"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "Encuentra las líneas de este capítulo cuyo hablante pueda estar mal y explica la evidencia"
   }
 }

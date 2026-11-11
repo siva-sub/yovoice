@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "Cast"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "Elenca i capitoli in sospeso"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "Elenca i capitoli della libreria che devono ancora essere letti, verificati, renderizzati o controllati, per libro e numero di capitolo"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "Qual è il prossimo passo?"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "Dimmi le tre prossime azioni per la libreria e perché"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "Verifica questo capitolo"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "Verifica l'assegnazione delle voci di questo capitolo ed elenca le righe a bassa affidabilità"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "Trova le righe sospette"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "Trova le righe di questo capitolo in cui lo speaker potrebbe essere sbagliato e spiega gli indizi"
   }
 }

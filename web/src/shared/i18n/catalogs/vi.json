@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "Dàn vai"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "Liệt kê chương cần làm"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "Liệt kê các chương trên giá sách còn cần đọc, xác minh, kết xuất hoặc nghiệm thu, theo sách và thứ tự chương"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "Việc tiếp theo là gì?"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "Cho tôi biết ba việc tiếp theo trên giá sách và lý do"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "Xác minh chương này"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "Xác minh việc gán người nói của chương này và liệt kê các dòng có độ tin cậy thấp"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "Tìm câu đáng ngờ"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "Tìm các câu trong chương này có thể gán sai người nói và giải thích căn cứ"
   }
 }

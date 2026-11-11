@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "キャスト"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "保留中の章を一覧"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "本棚でまだ読了・検証・レンダリング・QA が済んでいない章を、本と章番号順に一覧してください"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "次にやること"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "本棚で次にやるべき三つの作業と理由を教えてください"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "この章を検証"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "現在の章の話者割り当てを検証し、信頼度の低い行を一覧してください"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "疑わしい行を探す"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "この章で話者が誤っている可能性がある行と根拠を挙げてください"
   }
 }

@@ -62,7 +62,9 @@ export function useAssistantBridge({ state, page, setPage, draft, setDraft, setD
   useEffect(() => applyAssistantNav(liveRequest.nav), [liveRequest.nav]);
   useEffect(() => applyAssistantUpdate(liveRequest.update), [liveRequest.update]);
   useEffect(() => { if (isDesktop) void call('assistant.entry', { visible: launcherHidden && !assistantOpen && !assistantHidden }).catch(() => undefined); }, [launcherHidden, assistantOpen, assistantHidden]);
-  const assistantContext: AssistantContext = { page: assistantPage, workId: page === 'create' ? draft.id : '', workTitle: page === 'create' ? draft.title : '', workKind: page === 'create' ? projectKind(draft) : '', locale: state.preferences.uiLocale, cue };
+  // 作品页与阅读页都把当前作品带给助手：阅读页的“校验这一章”要靠它找到章节。
+  const withWork = page === 'create' || page === 'reading';
+  const assistantContext: AssistantContext = { page: assistantPage, workId: withWork ? draft.id : '', workTitle: withWork ? draft.title : '', workKind: withWork ? projectKind(draft) : '', locale: state.preferences.uiLocale, cue };
   useEffect(() => trackAssistantFocus(), []);
   // 主动提示：面板关着、开着主动提示且助手可用时，生成或下载结束会在右下角冒出建议。
   const assistantReady = !state.assistantMissing && assistantUsable(state.aiProviders?.find(item => item.id === state.aiProviderID));
