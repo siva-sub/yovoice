@@ -1,0 +1,82 @@
+/* 归因阅读与改派：一行一句，序号、类型、说话人、正文四栏；依据标记在行尾，低置信度整行带左侧色条。 */
+
+@layer app {
+  .audiobook-reading { height: 100%; min-height: 0; background: var(--app-paper); }
+  .audiobook-header { min-width: 0; }
+  .audiobook-toolbar { min-width: 0; }
+  .audiobook-review { flex: none; color: var(--app-ink); }
+  .audiobook-cast { color: var(--app-muted); font-size: var(--app-small-font); }
+  .audiobook-cast-item { flex: none; color: var(--app-ink); }
+  .audiobook-help { margin-inline-start: auto; color: var(--app-muted); }
+  .audiobook-prompting { color: var(--color-text-accent); }
+
+  .audiobook-cues { margin: 0; padding: 0; list-style: none; }
+  .audiobook-cue {
+    align-items: start;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-block-end: var(--border-width) solid var(--app-line);
+    scroll-margin-block: var(--spacing-4);
+    transition: background var(--duration-fast) var(--ease-standard);
+  }
+  .audiobook-cue:hover { background: var(--color-background-muted); }
+  .audiobook-cue[aria-current="true"] { background: var(--app-surface); }
+  /* 左侧色条画在行内，不用边框占据宽度，折叠展开时列宽不跳。 */
+  .audiobook-cue[data-low-confidence="true"] { box-shadow: inset calc(var(--border-width) * 3) 0 0 var(--color-warning); }
+  .audiobook-cue[data-low-confidence="true"][aria-current="true"] { background: var(--color-warning-muted); }
+  .audiobook-cue[data-prompting="true"] { background: var(--color-accent-muted); }
+
+  .audiobook-index {
+    flex: none;
+    width: calc(var(--spacing-8) - var(--spacing-1));
+    padding-block-start: var(--spacing-0-5);
+    color: var(--app-muted);
+    font-family: var(--app-mono);
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+  .audiobook-kind {
+    flex: none;
+    width: var(--spacing-6);
+    color: var(--app-muted);
+    font-family: var(--app-mono);
+    text-align: center;
+  }
+  .audiobook-speaker {
+    flex: none;
+    width: calc(var(--spacing-10) * 2.5);
+    min-width: 0;
+    padding-inline-end: var(--spacing-2);
+  }
+  .audiobook-speaker > .astryx-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .audiobook-speaker-key { color: var(--app-muted); font-family: var(--app-mono); font-size: var(--app-small-font); }
+
+  .audiobook-line { flex: 1; min-width: 0; }
+  /* 正文最多两行，点一下展开；按钮自身只承载文字，不加按钮外观。 */
+  .audiobook-text {
+    flex: 1;
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--app-ink);
+    font: inherit;
+    line-height: 1.75;
+    text-align: start;
+    cursor: pointer;
+  }
+  .audiobook-text[data-expanded="true"] { display: block; overflow: visible; }
+  .audiobook-text:focus-visible { outline: var(--focus-outline-width) solid var(--focus-outline-color); outline-offset: var(--focus-outline-offset); border-radius: var(--radius-inner); }
+  .audiobook-evidence {
+    flex: none;
+    color: var(--app-muted);
+    font-family: var(--app-mono);
+    font-size: var(--app-small-font);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
