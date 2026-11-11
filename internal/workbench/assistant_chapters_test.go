@@ -2,6 +2,7 @@ package workbench
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -42,6 +43,17 @@ func TestAssistantChapterToolsRegistered(t *testing.T) {
 	for _, name := range assistantChapterToolNames {
 		if !names[name] {
 			t.Errorf("有声书流程工具 %s 未注册", name)
+		}
+	}
+	// 成片改派靠模型在 cue_ids 与 kind 上选参数，入参 schema 里必须真的有这两个名字。
+	for _, tool := range listed.Tools {
+		if tool.Name != "reassign_cue" {
+			continue
+		}
+		input, err := json.Marshal(tool.InputSchema)
+		must(t, err)
+		if !strings.Contains(string(input), `"cue_ids"`) || !strings.Contains(string(input), `"kind"`) {
+			t.Fatalf("reassign_cue 的入参应暴露 cue_ids 与 kind：%s", input)
 		}
 	}
 }
@@ -186,5 +198,62 @@ func TestListPendingChaptersTool(t *testing.T) {
 	}
 	if items[0].DraftID != first.ID || items[0].Kind != QueueRead || items[1].DraftID != second.ID || items[1].Kind != QueueVerify || items[2].DraftID != other.ID || items[2].Kind != QueueRead {
 		t.Fatalf("待办顺序或类型不对：%+v", items)
+	}
+}
+
+// reassign_cue 支持可选 kind 与 cue_ids：单句可同时改类型，cue_ids 一次改多句；非法 kind 与缺目标被拒，成片缺失一句时整批不写。
+func TestReassignCueToolKindAndBatch(t *testing.T) {
+	w, err := New(t.TempDir())
+	must(t, err)
+	defer w.Close()
+	d := reviewTestStory(t, w, "vol-6", "第 1 章", "一", "二", "三", "四", "五")
+	cues := d.Subtitles.Cues
+
+	_, out, err := w.reassignCueTool(context.Background(), toolReq, reassignCueInput{DraftID: d.ID, CueID: cues[0].ID, SpeakerID: "jet", Kind: "dialogue"})
+	must(t, err)
+	if got := reviewLocalCue(t, w, d.ID, 0); got.SpeakerID != "jet" || got.Kind != "dialogue" || got.Confidence != nil {
+		t.Fatalf("单句应同时改说话人与类型：%+v", got)
+	}
+	if summary, ok := out.(map[string]any); !ok || summary["cueId"] != cues[0].ID || summary["kind"] != "dialogue" {
+		t.Fatalf("单句应返回改派摘要：%T %v", out, out)
+	}
+
+	ids := []string{cues[1].ID, cues[2].ID, cues[3].ID}
+	_, out, err = w.reassignCueTool(context.Background(), toolReq, reassignCueInput{DraftID: d.ID, CueIDs: ids, SpeakerID: "narrator2", Kind: "thought"})
+	must(t, err)
+	if summary, ok := out.(map[string]any); !ok || summary["changed"] != 3 {
+		t.Fatalf("cue_ids 应返回改派条数：%T %v", out, out)
+	}
+	for i := 1; i <= 3; i++ {
+		if cue := reviewLocalCue(t, w, d.ID, i); cue.SpeakerID != "narrator2" || cue.Kind != "thought" || cue.Confidence != nil {
+			t.Fatalf("第 %d 句应整批改派：%+v", i+1, cue)
+		}
+	}
+	if cue := reviewLocalCue(t, w, d.ID, 4); cue.SpeakerID != "narrator" || cue.Kind != "narration" || cue.Confidence == nil {
+		t.Fatalf("未选中的句子不应被改动：%+v", cue)
+	}
+
+	before := reviewDraftsJSON(t, w)
+	if _, _, err := w.reassignCueTool(context.Background(), toolReq, reassignCueInput{DraftID: d.ID, CueIDs: []string{cues[4].ID}, Kind: "shout"}); err == nil {
+		t.Fatal("非法 kind 应被拒绝")
+	}
+	if _, _, err := w.reassignCueTool(context.Background(), toolReq, reassignCueInput{DraftID: d.ID, CueIDs: append(ids, "missing"), SpeakerID: "narrator"}); err == nil {
+		t.Fatal("cue 不存在时整批应被拒绝")
+	}
+	if _, _, err := w.reassignCueTool(context.Background(), toolReq, reassignCueInput{DraftID: d.ID, CueID: cues[4].ID}); err == nil {
+		t.Fatal("说话人与类型都没给时应被拒绝")
+	}
+	if after := reviewDraftsJSON(t, w); after != before {
+		t.Fatal("被拒绝的改派不应写状态")
+	}
+
+	// 只改类型：speakerId 留空时说话人保持原样；单句与成片两条路都支持。
+	_, out, err = w.reassignCueTool(context.Background(), toolReq, reassignCueInput{DraftID: d.ID, CueID: cues[4].ID, Kind: "thought"})
+	must(t, err)
+	if summary, ok := out.(map[string]any); !ok || summary["changed"] != 1 {
+		t.Fatalf("单句只改类型应返回 1 条：%T %v", out, out)
+	}
+	if got := reviewLocalCue(t, w, d.ID, 4); got.SpeakerID != "narrator" || got.Kind != "thought" || got.Confidence != nil {
+		t.Fatalf("只改类型应保留说话人：%+v", got)
 	}
 }

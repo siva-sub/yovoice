@@ -102,6 +102,22 @@ func Call(ctx context.Context, w *workbench.Workbench, method string, data json.
 			return nil, msg.Err(msg.ErrRequestInvalid, nil)
 		}
 		return true, w.GenerateCue(input.Draft, input.CueID, input.ClipID)
+	case "draft.reassignCues":
+		// 成片改派：一次改完选区里的所有 cue，返回真正改变的句数；任一句不存在则整批拒绝。
+		var input struct {
+			ID        string   `json:"id"`
+			CueIDs    []string `json:"cueIds"`
+			SpeakerID string   `json:"speakerId"`
+			Kind      string   `json:"kind"`
+		}
+		if e := json.Unmarshal(data, &input); e != nil {
+			return nil, msg.Err(msg.ErrRequestInvalid, nil)
+		}
+		changed, e := w.ReassignCues(input.ID, input.CueIDs, input.SpeakerID, input.Kind)
+		if e != nil {
+			return nil, e
+		}
+		return map[string]int{"changed": changed}, nil
 	case "chapter.confirmRead":
 		return true, w.ConfirmRead(p.ID)
 	case "chapter.verify":

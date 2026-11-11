@@ -122,6 +122,100 @@ func TestChapterGateTransitions(t *testing.T) {
 	}
 }
 
+// 改派可同时改台词类型：空 kind 保持原类型，非法类型被拒且不写状态；改类型与改说话人一样清空机器置信度。
+func TestReassignCueKind(t *testing.T) {
+	w, err := New(t.TempDir())
+	must(t, err)
+	defer w.Close()
+	d := reviewTestStory(t, w, "vol-6", "第 1 章", "夜里。", "我来了。")
+	first, second := d.Subtitles.Cues[0], d.Subtitles.Cues[1]
+
+	before := reviewDraftsJSON(t, w)
+	var ce *msg.CallError
+	if err = w.ReassignCue(d.ID, first.ID, "jet", "whisper"); !errors.As(err, &ce) || ce.Code != msg.ErrSubtitleInvalid {
+		t.Fatalf("非法 kind 应返回 subtitleInvalid：%v", err)
+	}
+	if after := reviewDraftsJSON(t, w); after != before {
+		t.Fatal("被拒绝的 kind 不应写状态")
+	}
+
+	// 空 kind：只改说话人，原类型保持不变。
+	must(t, w.ReassignCue(d.ID, first.ID, "jet", ""))
+	got := reviewLocalCue(t, w, d.ID, 0)
+	if got.SpeakerID != "jet" || got.Kind != "narration" || got.Confidence != nil {
+		t.Fatalf("空 kind 应保持原类型并清空置信度：%+v", got)
+	}
+
+	// 改类型：说话人不变，类型改成心声，置信度同样清空。
+	must(t, w.ReassignCue(d.ID, second.ID, "narrator", "thought"))
+	got = reviewLocalCue(t, w, d.ID, 1)
+	if got.SpeakerID != "narrator" || got.Kind != "thought" || got.Confidence != nil {
+		t.Fatalf("改类型应清空置信度：%+v", got)
+	}
+}
+
+// 成片改派：空 cueIDs 返回 0；改 5 句返回 5 且五句全部到位；任一句不存在时整批拒绝、数据保持原样。
+func TestReassignCuesBatch(t *testing.T) {
+	w, err := New(t.TempDir())
+	must(t, err)
+	defer w.Close()
+	d := reviewTestStory(t, w, "vol-6", "第 1 章", "一", "二", "三", "四", "五")
+	cueIDs := make([]string, 0, len(d.Subtitles.Cues))
+	for _, cue := range d.Subtitles.Cues {
+		cueIDs = append(cueIDs, cue.ID)
+	}
+
+	if changed, err := w.ReassignCues(d.ID, nil, "jet", ""); err != nil || changed != 0 {
+		t.Fatalf("空 cueIDs 应返回 0：%d %v", changed, err)
+	}
+
+	before := reviewDraftsJSON(t, w)
+	var ce *msg.CallError
+	if _, err := w.ReassignCues(d.ID, cueIDs, "jet", "shout"); !errors.As(err, &ce) || ce.Code != msg.ErrSubtitleInvalid {
+		t.Fatalf("非法 kind 应返回 subtitleInvalid：%v", err)
+	}
+	if after := reviewDraftsJSON(t, w); after != before {
+		t.Fatal("被拒绝的 kind 不应写状态")
+	}
+
+	changed, err := w.ReassignCues(d.ID, cueIDs, "jet", "dialogue")
+	if err != nil || changed != 5 {
+		t.Fatalf("改 5 句应返回 5：%d %v", changed, err)
+	}
+	changedCues := 0
+	for _, cue := range w.Store.Read().Drafts[0].Subtitles.Cues {
+		if cue.SpeakerID == "jet" && cue.Kind == "dialogue" && cue.Confidence == nil {
+			changedCues++
+		}
+	}
+	if changedCues != 5 {
+		t.Fatalf("应恰好 5 句变化，实际 %d", changedCues)
+	}
+
+	// 只改类型：speakerID 留空时说话人不动，只改 kind 并清空置信度。
+	changed, err = w.ReassignCues(d.ID, cueIDs[:2], "", "thought")
+	if err != nil || changed != 2 {
+		t.Fatalf("只改类型应改 2 句：%d %v", changed, err)
+	}
+	for i := 0; i < 2; i++ {
+		if cue := reviewLocalCue(t, w, d.ID, i); cue.SpeakerID != "jet" || cue.Kind != "thought" || cue.Confidence != nil {
+			t.Fatalf("只改类型应保留说话人：%+v", cue)
+		}
+	}
+
+	// 其中一句不存在：整批拒绝，前后状态完全相等。
+	before = reviewDraftsJSON(t, w)
+	missing := append([]string{}, cueIDs[1:]...)
+	missing = append(missing, "missing")
+	changed, err = w.ReassignCues(d.ID, missing, "narrator2", "narration")
+	if err == nil || changed != 0 {
+		t.Fatalf("有一句不存在时应整批拒绝：%d %v", changed, err)
+	}
+	if after := reviewDraftsJSON(t, w); after != before {
+		t.Fatal("整批拒绝不应写入任何一句")
+	}
+}
+
 // 归属只能指向已有的书；默认卷“未归档”始终可用。
 func TestMoveToBookRequiresExistingBook(t *testing.T) {
 	w, err := New(t.TempDir())
