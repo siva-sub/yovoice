@@ -4849,5 +4849,8 @@
   },
   "@yovoice.nav.reading": {
     "defaultMessage": "歸因閱讀"
+  },
+  "@yovoice.error.renderBudgetExceeded": {
+    "defaultMessage": "預計渲染成本超過計算單元結餘，已阻止開始。可改用更快的模型或減少章節，確認要開始時再明確覆蓋。"
   }
 }

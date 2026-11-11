@@ -74,6 +74,7 @@ Errors reach you as stable codes (in <ui_context>, get_generation_status, get_re
 - `timeline.inUse` 这段音频正在作品音轨中使用，请先移除对应片段。
 - `subtitle.invalid` 字幕格式或内容无效。支持 SRT、VTT、ASS/SSA，最多 2 MB、2000 句、100 位说话人和 12000 字；请检查时间和说话人设置。
 - `error.chapterNotVerified` 本章尚未确认已读，不能开始渲染。请先在归因页确认章节内容。
+- `error.renderBudgetExceeded` 预计渲染成本超过计算单元结余，已阻止开始。可改用更快的模型或减少章节，确认要开始时再显式覆盖。
 - `error.voiceReferenced` 参考音频正在被「{names}」使用，请先替换或移除引用。
 - `error.voiceInUse` 此音色正在被角色使用，请先在角色中替换或解除引用。
 - `error.characterInvalid` 角色或音色信息无效，请检查名称、台词长度及记录是否存在。

@@ -13,14 +13,6 @@ import (
 	"yovoice/internal/testkit"
 )
 
-// pendingUILane 是界面车道尚未镜像的字段与接口：本次 Go 渲染车道先落地系列表，
-// 父车道在界面车道合并后移除本项并补齐 web/src/shared/workbench/types.ts。
-var pendingUILane = map[string][]string{
-	"State":  {"series"},
-	"Series": {"id", "title", "createdAt", "updatedAt"},
-	"Draft":  {"qa", "chapter"}, // 验收与章号字段，父车道补 types.ts 后删除本表
-}
-
 // 界面在 web/src/shared/workbench/ 下手写镜像这些结构；字段名不一致时保存会静默丢失数据。
 func TestFrontendTypesMatchSchema(t *testing.T) {
 	interfaces := tsInterfaces(readTypeScript(t, testkit.RepoFile(t, "web", "src", "shared", "workbench")))
@@ -46,18 +38,12 @@ func TestFrontendTypesMatchSchema(t *testing.T) {
 		typ := reflect.TypeOf(value)
 		ts, ok := interfaces[typ.Name()]
 		if !ok {
-			if _, exempt := pendingUILane[typ.Name()]; exempt {
-				continue
-			}
 			t.Errorf("shared/workbench 缺少接口 %s", typ.Name())
 			continue
 		}
 		fields := jsonFields(typ)
 		for _, name := range fields {
 			if !slices.Contains(ts, name) && !slices.Contains(goOnly[typ.Name()], name) {
-				if slices.Contains(pendingUILane[typ.Name()], name) {
-					continue
-				}
 				t.Errorf("%s.%s 只在 Go 中定义", typ.Name(), name)
 			}
 		}
