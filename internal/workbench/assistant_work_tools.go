@@ -151,7 +151,7 @@ func (w *Workbench) createWorkTool(ctx context.Context, req *mcp.CallToolRequest
 func (w *Workbench) registerChapterTools(server *mcp.Server) {
 	mcp.AddTool(server, &mcp.Tool{Name: "list_pending_chapters", Description: "列出书级待办：该读、该校验归因、该渲染、该验收的章节，按章号升序。用户问“接下来做什么”“还有哪些章没过”，或你准备调用 verify_chapter 前，先调用它。只读：bookId 留空返回所有书的待办，传入书（卷）ID 只看那一本；每项给出 kind、draftId、chapter 与可直接展示的 reason。"}, w.listPendingChaptersTool)
 	mcp.AddTool(server, &mcp.Tool{Name: "verify_chapter", Description: "把一章的闸门推进到已确认：先记为已读并记录当前正文指纹，再写入校验说明与确认时间。用户通读正文、核对说话人后让你确认时调用；调用它等于替用户声明“这一章已经读过”，不要替用户猜。副作用：闸门状态写入状态库并允许这一章渲染；确认后助手无法撤销，要重新核对只能重开章节（没有对应工具）。"}, w.verifyChapterTool)
-	mcp.AddTool(server, &mcp.Tool{Name: "reassign_cue", Description: "把一句台词改派给另一个说话人。用户指出“这句不是旁白说的”“改成 Jet”时调用；先 get_work 取到 cueId 与说话人 ID。副作用：会清空这句的机器归因置信度（人做过决定后置信度不再有意义），不重新生成音频，已经渲染过的句子要重新渲染才生效。speakerId 必须在该章的说话人列表里，不传或不存在会被拒绝。"}, w.reassignCueTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "reassign_cue", Description: "把台词改派给另一个说话人或改台词类型。用户指出“这句不是旁白说的”“改成 Jet”时调用单句（cueId）；整段判错时用 cue_ids 一次改完，不要逐句调用——两人对话里说话人常常整体反向，错误是成片的。先 get_work 取到 cueId 与说话人 ID。kind 可同时改类型：narration（叙述）、dialogue（对白）或 thought（心声），留空表示只改说话人。副作用：会清空这些句子的机器归因置信度（人做过决定后置信度不再有意义），不重新生成音频，已经渲染过的句子要重新渲染才生效。speakerId 非空时必须在该章的说话人列表里，否则整批拒绝、不会部分写入。"}, w.reassignCueTool)
 	mcp.AddTool(server, &mcp.Tool{Name: "record_qa", Description: "写入一章的音频验收结果：WER、整章响度、真峰值、静音段数与判定。用户通听后给出通过或不通过的结论时调用；verdict 取 pass、fail 或 unchecked。副作用：覆盖该章上一份验收记录；判 fail 必须用 note 写清问题，否则会被拒绝。不改变闸门与渲染状态。"}, w.recordQATool)
 	mcp.AddTool(server, &mcp.Tool{Name: "check_mix", Description: "检查故事配音时间线的混音配置：四层音轨（ambience、score、bed、hit）的电平区间、侧链深度与 hit 相对 cue 的提前量，返回问题列表与逐条说明。用户问“混音有没有问题”“电平合不合适”，或准备导出前调用。只读，不修改时间线；没有时间线时返回空列表。"}, w.checkMixTool)
 }
@@ -190,24 +190,51 @@ func (w *Workbench) verifyChapterTool(ctx context.Context, req *mcp.CallToolRequ
 }
 
 type reassignCueInput struct {
-	DraftID   string `json:"draftId" jsonschema:"章节作品 ID"`
-	CueID     string `json:"cueId" jsonschema:"台词（cue）ID"`
-	SpeakerID string `json:"speakerId" jsonschema:"改派到的说话人 ID，必须在该章的说话人列表里"`
+	DraftID   string   `json:"draftId" jsonschema:"章节作品 ID"`
+	CueID     string   `json:"cueId,omitempty" jsonschema:"单句的台词（cue）ID；只改一句时用，与 cue_ids 二选一"`
+	CueIDs    []string `json:"cue_ids,omitempty" jsonschema:"成片改派的多句台词 ID；整段判错时一次传入，与 cueId 二选一"`
+	SpeakerID string   `json:"speakerId,omitempty" jsonschema:"改派到的说话人 ID，必须在该章的说话人列表里；只改类型时可留空"`
+	Kind      string   `json:"kind,omitempty" jsonschema:"同时改成的台词类型：narration（叙述）、dialogue（对白）或 thought（心声）；留空表示不改"`
 }
 
 func (w *Workbench) reassignCueTool(ctx context.Context, req *mcp.CallToolRequest, in reassignCueInput) (*mcp.CallToolResult, any, error) {
-	if strings.TrimSpace(in.SpeakerID) == "" {
-		return nil, nil, fmt.Errorf("speakerId 不能为空：改派必须指定说话人")
+	speakerID, kind := strings.TrimSpace(in.SpeakerID), strings.TrimSpace(in.Kind)
+	if speakerID == "" && kind == "" {
+		return nil, nil, fmt.Errorf("speakerId 与 kind 不能都为空：至少要改说话人或台词类型")
+	}
+	cueID := strings.TrimSpace(in.CueID)
+	if len(in.CueIDs) > 0 && cueID != "" {
+		return nil, nil, fmt.Errorf("cueId 与 cue_ids 只能给一个：单句用 cueId，成片改派用 cue_ids")
+	}
+	if len(in.CueIDs) == 0 && cueID == "" {
+		return nil, nil, fmt.Errorf("cueId 或 cue_ids 不能为空：先 get_work 取到要改的台词 ID")
 	}
 	d, err := w.assistantWork(in.DraftID)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err = w.ReassignCue(in.DraftID, in.CueID, in.SpeakerID); err != nil {
+	if len(in.CueIDs) > 0 {
+		changed, err := w.ReassignCues(in.DraftID, in.CueIDs, speakerID, kind)
+		if err != nil {
+			return nil, nil, err
+		}
+		w.chatCard("reassign_cue", fmt.Sprintf("改派了《%s》的 %d 句台词", d.Title, changed), fmt.Sprintf("Reassigned %d cues in %q", changed, d.Title), "done")
+		return nil, map[string]any{"draftId": in.DraftID, "cueIds": in.CueIDs, "speakerId": speakerID, "kind": kind, "changed": changed, "confidenceCleared": true}, nil
+	}
+	if speakerID == "" {
+		// 只改类型：单句也走成片改派，空 speakerId 保持原说话人。
+		changed, err := w.ReassignCues(in.DraftID, []string{cueID}, "", kind)
+		if err != nil {
+			return nil, nil, err
+		}
+		w.chatCard("reassign_cue", fmt.Sprintf("改派了《%s》的一句台词", d.Title), fmt.Sprintf("Reassigned a cue in %q", d.Title), "done")
+		return nil, map[string]any{"draftId": in.DraftID, "cueId": cueID, "kind": kind, "changed": changed, "confidenceCleared": true}, nil
+	}
+	if err = w.ReassignCue(in.DraftID, cueID, speakerID, kind); err != nil {
 		return nil, nil, err
 	}
 	w.chatCard("reassign_cue", fmt.Sprintf("改派了《%s》的一句台词", d.Title), fmt.Sprintf("Reassigned a cue in %q", d.Title), "done")
-	return nil, map[string]any{"draftId": in.DraftID, "cueId": in.CueID, "speakerId": in.SpeakerID, "confidenceCleared": true}, nil
+	return nil, map[string]any{"draftId": in.DraftID, "cueId": cueID, "speakerId": speakerID, "kind": kind, "confidenceCleared": true}, nil
 }
 
 type recordQAInput struct {

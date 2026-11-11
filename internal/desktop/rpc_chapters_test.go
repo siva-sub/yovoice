@@ -175,3 +175,55 @@ func TestCallQueuePending(t *testing.T) {
 		t.Fatalf("空 bookId 应返回所有书的待办：%+v", all)
 	}
 }
+
+// 成片改派 RPC：返回改变条数并整批生效；任一句不存在时整批拒绝、前后状态相等；空 cueIds 返回 0。
+func TestCallDraftReassignCues(t *testing.T) {
+	w, err := workbench.New(t.TempDir())
+	must(t, err)
+	defer w.Close()
+	chapterRPCBook(t, w, "vol-6", "第六卷")
+	d := chapterRPCStory(t, w, "vol-6", "第 1 章", "一", "二", "三")
+
+	result, err := chapterCall(t, w, "draft.reassignCues", map[string]any{"id": d.ID, "cueIds": []string{"cue-0", "cue-1"}, "speakerId": "jet", "kind": "dialogue"})
+	must(t, err)
+	summary, ok := result.(map[string]int)
+	if !ok || summary["changed"] != 2 {
+		t.Fatalf("draft.reassignCues 应返回 {changed: 2}，实际 %T %v", result, result)
+	}
+	cues := w.Store.Read().Drafts[0].Subtitles.Cues
+	if cues[0].SpeakerID != "jet" || cues[0].Kind != "dialogue" || cues[0].Confidence != nil ||
+		cues[1].SpeakerID != "jet" || cues[1].Kind != "dialogue" || cues[1].Confidence != nil {
+		t.Fatalf("前两句应整批改派：%+v", cues)
+	}
+	if cues[2].SpeakerID != "narrator" || cues[2].Kind != "narration" {
+		t.Fatalf("未选中的句子不应被改动：%+v", cues[2])
+	}
+
+	before, err := json.Marshal(w.Store.Read().Drafts)
+	must(t, err)
+	if _, err = chapterCall(t, w, "draft.reassignCues", map[string]any{"id": d.ID, "cueIds": []string{"cue-0", "missing"}, "speakerId": "narrator"}); err == nil {
+		t.Fatal("含不存在的 cue 时整批应被拒绝")
+	}
+	callErr, ok := err.(*msg.CallError)
+	if !ok || callErr.Code != msg.ErrSubtitleInvalid {
+		t.Fatalf("不存在的 cue 应返回 subtitleInvalid，实际 %T %v", err, err)
+	}
+	after, err := json.Marshal(w.Store.Read().Drafts)
+	must(t, err)
+	if string(after) != string(before) {
+		t.Fatal("整批拒绝不应写入任何一句")
+	}
+
+	result, err = chapterCall(t, w, "draft.reassignCues", map[string]any{"id": d.ID, "cueIds": []string{}})
+	must(t, err)
+	if summary, ok = result.(map[string]int); !ok || summary["changed"] != 0 {
+		t.Fatalf("空 cueIds 应返回 0，实际 %T %v", result, result)
+	}
+
+	if _, err = chapterCall(t, w, "draft.reassignCues", map[string]any{"id": d.ID, "cueIds": []string{"cue-2"}, "speakerId": "jet", "kind": "shout"}); err == nil {
+		t.Fatal("非法 kind 应被拒绝")
+	}
+	if callErr, ok = err.(*msg.CallError); !ok || callErr.Code != msg.ErrSubtitleInvalid {
+		t.Fatalf("非法 kind 应返回 subtitleInvalid，实际 %T %v", err, err)
+	}
+}

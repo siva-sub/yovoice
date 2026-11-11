@@ -101,8 +101,12 @@ func (w *Workbench) updateChapterGate(id string, gate schema.Gate) error {
 }
 
 // ReassignCue 把一句台词改派给指定说话人，并清空该句的机器归因置信度（ADR-0002）：
-// 人做过决定后置信度不再有意义。说话人不在这一章的说话人表里、或 cue 不存在时拒绝，不写状态。
-func (w *Workbench) ReassignCue(draftID, cueID, speakerID string) error {
+// 人做过决定后置信度不再有意义。kind 为空表示不改类型，非空时必须是 narration、dialogue 或 thought。
+// 说话人不在这一章的说话人表里、cue 不存在或 kind 非法时拒绝，不写状态。
+func (w *Workbench) ReassignCue(draftID, cueID, speakerID, kind string) error {
+	if kind != "" && !slices.Contains(schema.CueKinds, kind) {
+		return msg.Err(msg.ErrSubtitleInvalid, nil)
+	}
 	w.edit.Lock()
 	defer w.edit.Unlock()
 	s := w.Store.Read()
@@ -118,15 +122,88 @@ func (w *Workbench) ReassignCue(draftID, cueID, speakerID string) error {
 	if j < 0 {
 		return msg.Err(msg.ErrSubtitleInvalid, nil)
 	}
-	if document.Cues[j].SpeakerID == speakerID && document.Cues[j].Confidence == nil {
+	if !cueNeedsReassign(document.Cues[j], speakerID, kind) {
 		return nil
 	}
 	return w.Store.Update(func(s *schema.State) {
 		if i := slices.IndexFunc(s.Drafts, func(d schema.Draft) bool { return d.ID == draftID }); i >= 0 && s.Drafts[i].Subtitles != nil {
 			if j := slices.IndexFunc(s.Drafts[i].Subtitles.Cues, func(cue schema.SubtitleCue) bool { return cue.ID == cueID }); j >= 0 {
-				s.Drafts[i].Subtitles.Cues[j].SpeakerID = speakerID
-				s.Drafts[i].Subtitles.Cues[j].Confidence = nil
+				reassignCue(&s.Drafts[i].Subtitles.Cues[j], speakerID, kind)
 			}
 		}
 	}, true)
+}
+
+// ReassignCues 成片改派：一次加锁、批量应用，返回真正改变的句数。cueIDs 为空返回 0，不报错；
+// speakerID 为空表示不改说话人，kind 为空表示不改类型，kind 非法时拒绝。
+// 任一 cue 不存在则整批拒绝，不做部分写入：成片错误要么全改，要么保持原样。
+func (w *Workbench) ReassignCues(draftID string, cueIDs []string, speakerID, kind string) (int, error) {
+	if kind != "" && !slices.Contains(schema.CueKinds, kind) {
+		return 0, msg.Err(msg.ErrSubtitleInvalid, nil)
+	}
+	if len(cueIDs) == 0 || (speakerID == "" && kind == "") {
+		return 0, nil
+	}
+	w.edit.Lock()
+	defer w.edit.Unlock()
+	s := w.Store.Read()
+	i := slices.IndexFunc(s.Drafts, func(d schema.Draft) bool { return d.ID == draftID })
+	if i < 0 {
+		return 0, msg.Err(msg.ErrDraftIDInvalid, nil)
+	}
+	document := s.Drafts[i].Subtitles
+	if document == nil {
+		return 0, msg.Err(msg.ErrSubtitleInvalid, nil)
+	}
+	if speakerID != "" && !slices.ContainsFunc(document.Speakers, func(speaker schema.SubtitleSpeaker) bool { return speaker.ID == speakerID }) {
+		return 0, msg.Err(msg.ErrSpeakerInvalid, nil)
+	}
+	targets := make(map[string]bool, len(cueIDs))
+	for _, cueID := range cueIDs {
+		if !slices.ContainsFunc(document.Cues, func(cue schema.SubtitleCue) bool { return cue.ID == cueID }) {
+			return 0, msg.Err(msg.ErrSubtitleInvalid, nil)
+		}
+		targets[cueID] = true
+	}
+	pending := 0
+	for _, cue := range document.Cues {
+		if targets[cue.ID] && cueNeedsReassign(cue, speakerID, kind) {
+			pending++
+		}
+	}
+	if pending == 0 {
+		return 0, nil
+	}
+	changed := 0
+	err := w.Store.Update(func(s *schema.State) {
+		if i := slices.IndexFunc(s.Drafts, func(d schema.Draft) bool { return d.ID == draftID }); i >= 0 && s.Drafts[i].Subtitles != nil {
+			for j := range s.Drafts[i].Subtitles.Cues {
+				cue := &s.Drafts[i].Subtitles.Cues[j]
+				if targets[cue.ID] && cueNeedsReassign(*cue, speakerID, kind) {
+					reassignCue(cue, speakerID, kind)
+					changed++
+				}
+			}
+		}
+	}, true)
+	if err != nil {
+		return 0, err
+	}
+	return changed, nil
+}
+
+// cueNeedsReassign 判断改派是否会改动这一句：说话人或类型不同，或机器置信度还在（人工决定后要清空）。
+func cueNeedsReassign(cue schema.SubtitleCue, speakerID, kind string) bool {
+	return (speakerID != "" && cue.SpeakerID != speakerID) || (kind != "" && cue.Kind != kind) || cue.Confidence != nil
+}
+
+// reassignCue 把改派落到一句上：空说话人或空类型保持原值，置信度总是清空。
+func reassignCue(cue *schema.SubtitleCue, speakerID, kind string) {
+	if speakerID != "" {
+		cue.SpeakerID = speakerID
+	}
+	if kind != "" {
+		cue.Kind = kind
+	}
+	cue.Confidence = nil
 }
