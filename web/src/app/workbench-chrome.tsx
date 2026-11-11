@@ -32,6 +32,7 @@ import type { DraftSession } from './use-draft-session';
 import { AudioCheckBadge } from '../features/media/audio-check';
 import { useWorkbenchNavigation } from './use-workbench-navigation';
 import { useStoryCueEditing } from './use-story-cue-editing';
+import type { CueReassignment } from '../features/audiobook/reading-view';
 import { useAssistantBridge } from './use-assistant-bridge';
 import { useOnboarding } from './use-onboarding';
 import { useGenerate } from './use-generate';
@@ -50,6 +51,8 @@ const ScoreDock = lazy(() => import('../features/score/score-arrangement').then(
 const TimelineEditor = lazy(() => import('../features/media/timeline-editor').then(module => ({ default: module.TimelineEditor })));
 // 语音转写页带字幕编辑，打开时再加载。
 const TranscribePage = lazy(() => import('../features/transcribe/transcribe-page').then(module => ({ default: module.TranscribePage })));
+// 归因阅读页带整章阅读与逐句 take，打开时再加载。
+const ReadingPage = lazy(() => import('../features/audiobook/reading-page').then(module => ({ default: module.ReadingPage })));
 // 分轨工作台（分轨与转 MIDI 的结果）按需加载。
 const StemStudio = lazy(() => import('../features/music/stem-studio').then(module => ({ default: module.StemStudio })));
 const BookImport = lazy(() => import('../features/library/book-import').then(module => ({ default: module.BookImport })));
@@ -111,6 +114,12 @@ export function WorkbenchChrome({ state, catalog, catalogRevision, engine, ready
   useEffect(() => { if (ready) setDraft(current => Timeline.accept(current, state.history)); }, [state.history, draft.id, ready, setDraft]);
   const generate = useGenerate({ state, engine, catalog, draft, page, openSettings, run, persistDraft, setVoicePicker });
   const generations = state.history.filter(item => item.settings.id === draft.id);
+  // 归因阅读页的改派写回当前作品的字幕：只改这一句的说话人，人工决定后清空置信度。
+  const applyCueChange = (assignment: CueReassignment) => {
+    const subtitles = draft.subtitles;
+    if (!subtitles) return;
+    change({ subtitles: { ...subtitles, cues: subtitles.cues.map((cue, index) => index === assignment.index ? { ...cue, speakerId: assignment.speakerId, confidence: assignment.confidence } : cue) } });
+  };
   const activity = state.activity; const busy = activity?.status === 'running';
   const projectList = state.drafts.map(d => d.id === draft.id ? { ...draft, createdAt: d.createdAt, updatedAt: d.updatedAt } : d);
   const [voiceQuery, setVoiceQuery] = useState('');
@@ -275,6 +284,9 @@ export function WorkbenchChrome({ state, catalog, catalogRevision, engine, ready
           </PageBoundary></VStack> : null}
           {visited.has('transcribe') ? <VStack id="transcribe-panel" className="page-panel" gap={0} style={{ display: page === 'transcribe' ? 'flex' : 'none' }}><PageBoundary name="transcribe">
             <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><TranscribePage state={state} openSettings={() => openSettings('qwen3-asr-0.6b-q8')} /></Suspense>
+          </PageBoundary></VStack> : null}
+          {visited.has('reading') ? <VStack id="reading-panel" className="page-panel" gap={0} style={{ display: page === 'reading' ? 'flex' : 'none' }}><PageBoundary name="reading" resetKey={draft.id}>
+            <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><ReadingPage chapterId={draft.id} title={draft.title} subtitles={draft.subtitles} gate={draft.gate} generations={generations} isActive={page === 'reading'} onCueChange={applyCueChange} onError={onError} /></Suspense>
           </PageBoundary></VStack> : null}
           {visited.has('settings') ? <VStack className="page-panel" gap={0} style={{ display: page === 'settings' ? 'flex' : 'none' }}>
             <PageBoundary name="settings"><Suspense fallback={<p role="status">{t('@yovoice.app.loadingSettings')}</p>}><Settings focus={settingsFocus} state={state} catalog={catalog} engine={engine} draft={draft} run={run} active={page === 'settings'} onError={onError}

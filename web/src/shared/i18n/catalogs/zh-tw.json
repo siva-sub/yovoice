@@ -4846,5 +4846,8 @@
   },
   "@yovoice.error.chapterNotVerified": {
     "defaultMessage": "本章尚未確認已讀，不能開始渲染。請先在歸因頁確認章節內容。"
+  },
+  "@yovoice.nav.reading": {
+    "defaultMessage": "歸因閱讀"
   }
 }

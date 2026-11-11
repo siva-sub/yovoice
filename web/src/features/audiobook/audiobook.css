@@ -79,4 +79,52 @@
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
+
+  /* 阅读页：上面是整章阅读，下面是当前作品的逐句 take；take 区固定高度，正文占满剩余空间。 */
+  .audiobook-page { height: 100%; min-height: 0; }
+  .audiobook-page-reading { flex: 1; min-height: 0; }
+  .audiobook-empty { height: 100%; min-height: 0; }
+
+  .audiobook-takes {
+    flex: none;
+    height: calc(var(--spacing-12) * 5);
+    min-height: 0;
+    border-block-start: var(--border-width) solid var(--app-line);
+    background: var(--app-surface);
+  }
+  .audiobook-takes-head {
+    flex: none;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-block-end: var(--border-width) solid var(--app-line);
+  }
+  .audiobook-takes-hint { margin-inline-start: auto; color: var(--app-muted); }
+
+  .audiobook-take-cues { flex: 1; min-height: 0; overflow-y: auto; }
+  .audiobook-take-group { flex: none; }
+  .audiobook-take-cue {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: var(--spacing-1) var(--spacing-4);
+    background: var(--app-paper);
+    border-block-end: var(--border-width) solid var(--app-line);
+  }
+  .audiobook-take-cue-id { flex: none; color: var(--app-muted); }
+  .audiobook-take-cue-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .audiobook-take-rows { margin: 0; padding: 0; list-style: none; }
+  .audiobook-take {
+    padding: var(--spacing-1) var(--spacing-4);
+    border-block-end: var(--border-width) solid var(--app-line);
+  }
+  .audiobook-take[data-selected="true"] { background: var(--color-accent-muted); }
+  .audiobook-take-model { flex: none; color: var(--app-ink); }
+  .audiobook-take-time { flex: 1; min-width: 0; color: var(--app-muted); }
+  .audiobook-take-duration { flex: none; color: var(--app-muted); }
 }

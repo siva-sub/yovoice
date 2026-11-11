@@ -3,7 +3,7 @@ import { ResizeHandle, type ResizableProps } from '@astryxdesign/core/Resizable'
 import { Button } from '@astryxdesign/core/Button';
 import { HStack, StackItem, VStack } from '@astryxdesign/core/Layout';
 import { useTranslator } from '@astryxdesign/core/i18n';
-import { AudioLines, Captions, ChevronRight, Mic, Music, Pencil, Settings2, Trash2 } from 'lucide-react';
+import { AudioLines, BookOpenText, Captions, ChevronRight, Mic, Music, Pencil, Settings2, Trash2 } from 'lucide-react';
 import { featureHidden, projectKind, type Draft, type ModelPackage, type State } from '../shared/workbench';
 import { overflowTitle } from '../shared/ui/overflow-title';
 import { UpdateSidebarCard } from '../features/update/update-notice';
@@ -58,8 +58,9 @@ export function SidebarNav(props: {
     <StackItem ref={indicator} as="span" className="sidebar-indicator" aria-hidden />
     {newDraft}
     <VStack className="sidebar-destinations" gap={2}>
-      {/* 顺序：语音生成、语音转写（同属语音）、故事配音、音乐生成，最后是我的声音。 */}
-      {(['text', 'transcribe', 'story', 'music'] as const).filter(kind => kind === 'text' || !featureHidden(state.preferences, kind)).map(kind => {
+      {/* 顺序：语音生成、语音转写（同属语音）、故事配音、归因阅读（有字幕时）、音乐生成，最后是我的声音。 */}
+      {(['text', 'transcribe', 'story', 'reading', 'music'] as const).filter(kind => kind === 'reading' ? !!draft.subtitles : kind === 'text' || !featureHidden(state.preferences, kind)).map(kind => {
+        if (kind === 'reading') return <Button key={kind} data-testid="nav-reading" label={t('@yovoice.nav.reading')} variant="ghost" icon={<BookOpenText />} className={`nav-item ${page === 'reading' ? 'selected' : ''}`} aria-current={page === 'reading' ? 'page' : undefined} onClick={() => setPage('reading')} />;
         if (kind === 'transcribe') return <Button key={kind} data-testid="nav-transcribe" label={t('@yovoice.nav.transcribe')} variant="ghost" icon={<Captions />} className={`nav-item ${page === 'transcribe' ? 'selected' : ''}`} aria-current={page === 'transcribe' ? 'page' : undefined} onClick={() => setPage('transcribe')} />;
         // 编曲与音效并入音乐生成：三类作品都高亮「音乐生成」。
         const group = (k: string) => k === 'score' || k === 'sfx' ? 'music' : k;
