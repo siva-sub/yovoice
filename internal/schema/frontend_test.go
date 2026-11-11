@@ -18,6 +18,7 @@ import (
 var pendingUILane = map[string][]string{
 	"State":  {"series"},
 	"Series": {"id", "title", "createdAt", "updatedAt"},
+	"Draft":  {"qa", "chapter"}, // 验收与章号字段，父车道补 types.ts 后删除本表
 }
 
 // 界面在 web/src/shared/workbench/ 下手写镜像这些结构；字段名不一致时保存会静默丢失数据。
