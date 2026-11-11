@@ -73,6 +73,8 @@ var migrations = []migration{
 	// 6：新增系列表；旧数据没有系列，卷仍可独立存在（ADR-0014）。
 	// 用 IF NOT EXISTS 让版本号被回退过的测试库与已手工建表的库也能升级。
 	{sql: `CREATE TABLE IF NOT EXISTS series (key TEXT PRIMARY KEY, pos INTEGER NOT NULL, data TEXT NOT NULL);`},
+	// 7：新增复核角色表（ADR-0011）；旧库没有角色表时为空。
+	{sql: `CREATE TABLE IF NOT EXISTS reviewers (key TEXT PRIMARY KEY, pos INTEGER NOT NULL, data TEXT NOT NULL);`},
 }
 
 // defaultBooks 写入默认卷，让迁移后的旧作品有可归属的书。

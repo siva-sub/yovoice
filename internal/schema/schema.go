@@ -435,6 +435,8 @@ type State struct {
 	AssistantLive     *AssistantLive     `json:"assistantLive,omitempty"`
 	// AssistantMemory 是助手记住的用户偏好，所有会话共用。
 	AssistantMemory []AssistantMemo `json:"assistantMemory,omitempty"`
+	// Reviewers 是复核角色表（ADR-0011），旧数据没有该字段时为空。
+	Reviewers []Reviewer `json:"reviewers,omitempty"`
 }
 
 // MidiImport 记录转为 MIDI 新建的编曲作品：ProjectID 是新作品，SourceID 是来源版本。
