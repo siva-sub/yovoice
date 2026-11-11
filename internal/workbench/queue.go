@@ -26,21 +26,34 @@ type QueueItem struct {
 
 // PendingQueue 派生一本书当前还没做完的事（ADR-0010/0012）：先读、再校验归因、再渲染、最后验收。
 // 按章号升序返回，同一章的多段作品按段序排列；全部是只读派生，不写状态。
+// bookID 为空时返回所有书的待办，按书架顺序排列，每本书内仍按章号升序。
 // 章号取不到的作品跳过，避免把顺序号当成章号；未验收的判定只看 QAStatus，pass 与 fail 都算已验收。
 func (w *Workbench) PendingQueue(bookID string) []QueueItem {
 	state := w.Store.Read()
-	i := slices.IndexFunc(state.Books, func(b schema.Book) bool { return b.ID == bookID })
-	if i < 0 {
-		return nil
+	books := state.Books
+	if bookID != "" {
+		i := slices.IndexFunc(state.Books, func(b schema.Book) bool { return b.ID == bookID })
+		if i < 0 {
+			return nil
+		}
+		books = state.Books[i : i+1]
 	}
-	book := state.Books[i]
 	rendered := map[string]bool{}
 	for _, generation := range state.History {
 		rendered[generation.Settings.ID] = true
 	}
+	items := make([]QueueItem, 0, len(books))
+	for _, book := range books {
+		items = append(items, pendingBookItems(state.Drafts, book, rendered)...)
+	}
+	return items
+}
+
+// pendingBookItems 派生一本书里还没做完的事，按章号升序、同一章按段序排列。
+func pendingBookItems(drafts []schema.Draft, book schema.Book, rendered map[string]bool) []QueueItem {
 	groups := map[int][]schema.Draft{}
-	for _, draft := range state.Drafts {
-		if draft.BookID != bookID || draft.Kind != "story" {
+	for _, draft := range drafts {
+		if draft.BookID != book.ID || draft.Kind != "story" {
 			continue
 		}
 		chapter, err := reviewDraftChapter(draft, book.Title)

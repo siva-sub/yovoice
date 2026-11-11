@@ -99,3 +99,34 @@ func (w *Workbench) updateChapterGate(id string, gate schema.Gate) error {
 		}
 	}, true)
 }
+
+// ReassignCue 把一句台词改派给指定说话人，并清空该句的机器归因置信度（ADR-0002）：
+// 人做过决定后置信度不再有意义。说话人不在这一章的说话人表里、或 cue 不存在时拒绝，不写状态。
+func (w *Workbench) ReassignCue(draftID, cueID, speakerID string) error {
+	w.edit.Lock()
+	defer w.edit.Unlock()
+	s := w.Store.Read()
+	i := slices.IndexFunc(s.Drafts, func(d schema.Draft) bool { return d.ID == draftID })
+	if i < 0 {
+		return msg.Err(msg.ErrDraftIDInvalid, nil)
+	}
+	document := s.Drafts[i].Subtitles
+	if document == nil || !slices.ContainsFunc(document.Speakers, func(speaker schema.SubtitleSpeaker) bool { return speaker.ID == speakerID }) {
+		return msg.Err(msg.ErrSpeakerInvalid, nil)
+	}
+	j := slices.IndexFunc(document.Cues, func(cue schema.SubtitleCue) bool { return cue.ID == cueID })
+	if j < 0 {
+		return msg.Err(msg.ErrSubtitleInvalid, nil)
+	}
+	if document.Cues[j].SpeakerID == speakerID && document.Cues[j].Confidence == nil {
+		return nil
+	}
+	return w.Store.Update(func(s *schema.State) {
+		if i := slices.IndexFunc(s.Drafts, func(d schema.Draft) bool { return d.ID == draftID }); i >= 0 && s.Drafts[i].Subtitles != nil {
+			if j := slices.IndexFunc(s.Drafts[i].Subtitles.Cues, func(cue schema.SubtitleCue) bool { return cue.ID == cueID }); j >= 0 {
+				s.Drafts[i].Subtitles.Cues[j].SpeakerID = speakerID
+				s.Drafts[i].Subtitles.Cues[j].Confidence = nil
+			}
+		}
+	}, true)
+}
