@@ -107,6 +107,7 @@ type AudioClip struct {
 	GainDB       float64 `json:"gainDb,omitempty"`
 	FadeIn       float64 `json:"fadeIn,omitempty"`
 	FadeOut      float64 `json:"fadeOut,omitempty"`
+	CueID        string  `json:"cueId,omitempty"` // hit 等效果片段锚定的台词；旧片段为空
 	ID           string  `json:"id"`
 	GenerationID string  `json:"generationId,omitempty"`
 	AssetID      string  `json:"assetId,omitempty"`
@@ -121,6 +122,7 @@ type AudioLane struct {
 	DuckDB float64     `json:"duckDb,omitempty"`
 	ID     string      `json:"id"`
 	Name   string      `json:"name"`
+	Role   string      `json:"role,omitempty"` // ADR-0004 四层角色；空串是旧数据的普通音轨
 	Muted  bool        `json:"muted"`
 	Clips  []AudioClip `json:"clips"`
 }

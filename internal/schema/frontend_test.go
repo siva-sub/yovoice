@@ -18,7 +18,8 @@ func TestFrontendTypesMatchSchema(t *testing.T) {
 	interfaces := tsInterfaces(readTypeScript(t, testkit.RepoFile(t, "web", "src", "shared", "workbench")))
 	// 仅后端保留、界面有意不读写的字段。
 	goOnly := map[string][]string{
-		"AudioClip":    {"fadeIn", "fadeOut"},              // 旧版淡化，读取时忽略
+		"AudioClip":    {"fadeIn", "fadeOut", "cueId"},     // 旧版淡化，读取时忽略；cueId 供后端核对 hit 提前量
+		"AudioLane":    {"role"},                           // 四层音轨角色，界面尚未读写（ADR-0004）
 		"ModelPackage": {"revision", "repo", "modelScope"}, // 下载时固定的仓库与修订号
 	}
 	// 仅界面使用、不随状态保存的字段。
