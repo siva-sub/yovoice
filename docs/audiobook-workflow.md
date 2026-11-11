@@ -37,35 +37,84 @@
 **170 章的 `text_sha` 与原 `attribution_state.json` 逐字全部相等**，
 所以 `verified` 是随导入转移过来的，而不是被当成信任旧数据无条件继承。
 
-### M2 闸门落到 workbench（Go）
+### M2 闸门落到 workbench（ADR-0001、0002 后端）
 
-- `internal/schema`：`Draft` 增加 `gate`（`status`、`textSha`、`note`、`verifiedAt`）
+- `internal/schema`：`Draft` 增加 `gate`（`status`、`textSha`、`note`、`verifiedAt`）；
+  `SubtitleCue` 增加 `confidence`、`evidence`、`kind`
 - `internal/schema/validate.go`：渲染前检查；低于 `verified` 返回明确错误码
 - `internal/store/migrate.go`：末尾追加升级步骤，旧作品按 `pending` 补齐
 - `internal/workbench`：`ConfirmRead`、`VerifyChapter`、`ReopenChapter` 三个动作
 - 验收：`go test -race ./internal/workbench ./internal/store ./internal/schema` 覆盖
   "未验证章节发起生成被拒绝"
 
-### M3 复核队列与批量改写（前端）
+### M3 归因阅读与改派界面（ADR-0007，核心）
 
-- `features/create/subtitles.tsx`：行尾显示置信度与证据标签；队列默认只列 `< 0.5`
-- 批量操作：选区改说话人、引号内全部改给某人、两人交替、别名合并（Sunny/Sunless/
-  Lost from Light）、重名消歧（`Saint` 阶级 vs 角色）
-- 人工改写后清空 `confidence`（ADR-0002）
-- 验收：`pnpm lint && pnpm build`，浏览器测试覆盖"改说话人后置信度消失"与"队列项数下降"
+整条流程的唯一人工瓶颈，先做它。
 
-### M4 渲染缓存与车道路由
+- 阅读视图：序号 / 类型 / 说话人 / 正文四栏，依据标记在行尾，低置信度整行色条
+- 键盘：`1–9` 改派（进章节时固定映射）、`0` 旁白、`J/K` 跳下一处可疑、`A` 接受、`Ctrl+Z` 撤销
+- 两人对话翻转探测（只提议，永不自动应用）
+- 重新导入后的章节差异视图，只把变化的行重置为待复核
+- 提词器试听：按序播放并高亮当前行与说话人
+- 验收：`pnpm lint && pnpm build`；浏览器测试覆盖"改派后置信度清空"与"撤销恢复原说话人"
 
-- 缓存键：`hash(speaker, anchorRev, text, instruction, cfg)`；音效沿用
-  `hash(prompt, seconds, seed)`。命中即不请求引擎
-- 车道：旁白/角色/音效/配乐各自选模型，锚点审计的五个指标显示在角色页
-- 验收：重跑一章不再产生引擎请求；八个锚点的审计数字可见
+### M4 角色与 cast 管理（ADR-0006、0008）
 
-### M5 Colab 车道与实测
+- 角色卡：`design`、锚点音频、逐字稿、`f0_hz`、`seed`、冻结状态、五个审计数
+- 锚点候选对比：同一 `design` 三个 seed 并排 + 五个数 + 试听 + 冻结
+- 别名与亲属图：别名合并（最长优先）、关系边、`Saint` 类重名歧义标记
+- 未知专名清单：本章出现但不在角色表里的专有名词
+- 漂移监控：已渲染行的音色余弦低于阈值时告警并指出起始章
+- 验收：导入 `voice_bible_v5.json` 后 18 个角色与 21 条锚点全部可见且带审计结果
 
-- 已交付脚手架：`scripts/colab/{provision.sh,bench.py,engine-shim.py}`（ADR-0005）
+### M5 音频库与 take（ADR-0009）
+
+- 三层组织：作品 → cue → take；take 带 `seed`、五数、LUFS、判定
+- 版本不覆盖，`selected` 为唯一进混音的状态
+- 种子账本：同键重放必须同音频，不同则标版本不符
+- 入库前统一 −18 LUFS
+- 导出预设：m4b、逐角色试听包、整卷合集
+- 验收：一章的四版 take 可切换试听；换 `selected` 后混音结果随之改变
+
+### M6 渲染成本与续跑（ADR-0010）
+
+- 成本预估：字数 ÷ RTF × 卡型单价，对照计算单元结余
+- 预算闸门：超额拒绝并给出换模型 / 只渲某几章两个动作
+- 缓存命中面板与可续跑 `render-manifest.json`
+- 热车道保活与分车道队列（人声 / 音效 / 配乐）
+- 验收：断掉会话后按清单续跑，已完成 take 不重做；超额时无法静默开始
+
+### M7 多人复核（ADR-0011）
+
+- 复核包导出 / 导入，覆盖键沿用 `章节:段落下标`
+- 导入前逐章校验 `textSha`，不一致整章拒绝
+- 两边都改过的 cue 不自动合并，留为提案由 owner 接受
+- 验收：两个独立数据目录各自改同一章，导入后能看到差异而不是被覆盖
+
+### M8 Colab 实机与车道路由（ADR-0003、0005）
+
+- 已交付脚手架：`scripts/colab/{provision.sh,bench.py,engine-shim.py}`
 - 待办：一次 T4 与一次 A100 实机跑，把 RTF 与显存写回 ADR-0003 的表
+- 车道：旁白 / 角色 / 音效 / 配乐各自选模型
 - 验收：章节 1111 在本机界面上用远端 A100 渲染完成，并与 `pilot/ch_1111_v6.m4b` 对照
+
+### M9 四层音轨与混音（ADR-0004）
+
+- 轨道 `role`：ambience / score / bed / hit / mute，带默认电平区间
+- hit 提前于台词约自身长度 40%；侧链压约 16 dB
+- 章节 → 地点映射整卷导入（本卷 14 段覆盖 170 章）
+- 验收：第 1187 章战斗段的四层混音与 `demo/vol6_ch1187_battle_60s.m4b` 听感一致
+
+## 界面总览
+
+| 入口 | ADR | 主要工作 |
+| --- | --- | --- |
+| 书目与章节 | 0001 | 导入、拆章、闸门状态、确认读过 |
+| **归因阅读与改派** | 0007 | 读、改派、复核队列、差异、试听 |
+| **角色与 cast** | 0008 | 音色设计、锚点审计、别名图、未知专名、漂移 |
+| **音频库** | 0009 | take 切换、种子账本、导出 |
+| 渲染面板 | 0010 | 成本、缓存、队列、续跑 |
+| 混音 | 0004 | 四层电平、侧链、导出 m4b |
 
 ## 关键约束（不要重新发现）
 
