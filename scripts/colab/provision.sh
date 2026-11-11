@@ -41,7 +41,10 @@ else
 	cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCHS" -DCMAKE_BUILD_TYPE=Release
 	cmake --build build -j"$JOBS" --target audiocpp_server audiocpp_cli
 fi
-[ -x build/bin/audiocpp_server ] || { echo "没有生成 audiocpp_server，编译失败。" >&2; exit 1; }
+[ -x build/bin/audiocpp_server ] || {
+	echo "没有生成 audiocpp_server，编译失败。" >&2
+	exit 1
+}
 
 log "下载 GGUF 到 $MODELS_ROOT（audio-cpp/audio.cpp-gguf 未设门禁）"
 python3 -m pip install -q -U huggingface_hub
