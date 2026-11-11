@@ -1,7 +1,9 @@
 # Colab 实机跑手册：一次 T4、一次 A100
 
 > **状态：尚未实机运行。** 本页命令来自仓库脚手架、`colab` CLI 0.7.4 的帮助文本与
-> `analyze.py cost` 的本地计算，**没有一条在 Colab 上跑过**。在 T4/A100 的 JSON 留档之前：
+> `analyze.py cost` 的本地计算，**没有一条在 Colab 上跑过**。新增的 `preflight.sh`
+> 与 `run-bench.sh` 也只做了本地 dry-run 和假命令测试，同样没有在 Colab 上执行过。
+> 在 T4/A100 的 JSON 留档之前：
 >
 > - ADR-0005 保持“脚手架已交付，尚未实机验证”
 > - ADR-0003 的 RTF 表不得写入新数字
@@ -23,7 +25,30 @@ colab usage
 下载两个 GGUF，并假设 `/content` 可写。它找不到 `nvcc` 会直接失败，不会降级到 CPU。
 T4/A100 的资格与形状以 `colab new` 的实际返回为准；A100 是否可用取决于账号档位。
 
-## 二、预算估算（本地计算，不是实测）
+## 二、预检：不申请 GPU 的 GO/NO-GO
+
+`preflight.sh` 只读检查本机是否具备起一次基准的条件：`colab` 命令与登录态、
+`colab usage` 的当前余额、`ffmpeg`、GGUF 缓存目录、磁盘余量，以及 `analyze.py cost`
+在当前记录与余额下的结论。它不会 `colab new`、不会上传文件，也不会消耗计算单元；
+不给 `--balance` 时唯一的远程调用是只读的 `colab usage`（读余额，不租卡）。
+
+```bash
+bash scripts/colab/preflight.sh
+
+# 指定记录、余额、卡型与缓存目录
+bash scripts/colab/preflight.sh \
+    --records ~/ss_audiobook/data/vol6.jsonl \
+    --balance 265.33 --card T4 \
+    --models-dir ~/ss_audiobook/models
+```
+
+- 退出码 0 = GO，1 = NO-GO（缺项逐条列出），2 = 参数错误。
+- 不给 `--balance` 时会调用 `colab usage` 读当前余额；不想联网或账号走 ADC 时可直接传余额。
+- 最后一行固定打印“未执行任何 GPU 作业；执行前看 docs/colab-runbook.md”。
+- GGUF 缓存目录缺目录或缺两个基准 GGUF 时判 NO-GO；这表示本机没有可复用缓存，
+  不代表 Colab 上不能跑：`provision.sh` 会在远端重新下载。
+
+## 三、预算估算（本地计算，不是实测）
 
 整卷的音频时长与模型成本用 `analyze.py cost` 在本机算，不占 GPU：
 
@@ -79,7 +104,7 @@ T4 的 76.8 单元是**单价换算**，不是“T4 更快”：`analyze.py cost
 
 这里的“1 小时”是预算上限，不是预计耗时。跑完用 `colab usage` 对比余额，得到真实花费。
 
-## 三、T4：音效车道的基准
+## 四、T4：音效车道的基准
 
 `bench.py` 需要同目录的 `provision.sh`，而 `colab run` 只把单个 `.py` 送进内核、默认
 超时 30 s。所以这里用 `new` + `upload` + `exec`，把两个文件放进 `/content` 再跑：
@@ -115,7 +140,7 @@ colab stop -s acpp-t4
 `provision.sh` 负责编译与下载；`--skip-provision` 让 `bench.py` 不再重复准备。
 `--repeats 2` 让每条 SFX 提示跑两遍，便于看启动开销的抖动。
 
-## 四、A100：人声车道的基准
+## 五、A100：人声车道的基准
 
 同一个脚本，换卡与标签；两趟的提示、重复次数保持一致，结果才能横向比较。
 A100 只租这一趟，跑完立即 `stop`：
@@ -145,7 +170,7 @@ A100 的 `--timeout` 给到 3 小时，是为了覆盖编译；这不是预计�
 在 `nvcc` 处失败，先确认 `colab new --gpu A100` 真的拿到了 GPU 运行时，再重试；
 不要用 CPU 运行时跑这份脚本。
 
-## 五、跑完怎么记录（没跑之前不要做）
+## 六、跑完怎么记录（没跑之前不要做）
 
 两份 JSON 下载到本机后，先做一次只读汇总：
 
@@ -167,7 +192,31 @@ PY
 2. 把 ADR-0005 的状态从“尚未实机验证”改成实测结论（方案 A 是否接通、隧道是否稳定）；
 3. 在 CHANGELOG 的 `Unreleased` 记录用户可见的变化，而不是把“跑了一次基准”写成功能。
 
-## 六、失败与清理
+## 七、一键实机脚本（默认只打印命令）
+
+`run-bench.sh` 把 `colab new`、上传 `provision.sh` / `bench.py`、远端准备与基准、
+`colab download`、`colab stop` 串成一条命令。**默认 dry-run**：只打印将执行的命令和
+`analyze.py cost` 的余额对比，不申请 GPU。
+
+```bash
+# 只预览：不租卡、不花钱
+bash scripts/colab/run-bench.sh --gpu T4
+bash scripts/colab/run-bench.sh --gpu A100 --balance 265.33
+
+# 真正执行：必须显式加 --yes
+bash scripts/colab/run-bench.sh --gpu T4 --yes
+```
+
+- 预留成本默认按 1 GPU 小时算：T4 1.68 单元、A100 11.77 单元；实际按会话墙钟计费，
+  不是实测耗时。`analyze.py cost` 的整卷结论只用来对比余额，本次并不渲染整卷。
+- 创建会话之后，失败或正常结束时脚本都会尝试 `colab stop -s <session>`，避免会话继续计费。
+- `colab new` 本身没有 `--keep` 选项（`--keep` 是 `colab run` 的）；`new` 创建的会话
+  默认保留到 `colab stop`。这里用 `new` 是因为要把 `provision.sh` 与 `bench.py` 两个文件
+  上传到同一个运行时。
+- `--yes` 之前请先跑 `preflight.sh`；脚本不会替你判断 GO/NO-GO。
+- 本轮仍**没有实机执行**：以上命令只在本地 dry-run 与假命令测试中验证。
+
+## 八、失败与清理
 
 ```bash
 colab sessions                 # 看还有哪些会话在计费
@@ -175,6 +224,8 @@ colab stop -s acpp-t4
 colab stop -s acpp-a100
 ```
 
+- **预检 NO-GO**：按 `preflight.sh` 的逐项输出补齐登录、`ffmpeg`、GGUF 缓存、磁盘或余额；
+  预检本身不会租卡，补完后重跑即可。
 - **`nvcc` 缺失**：运行时不是 GPU 形状，或 CUDA Toolkit 未安装；`provision.sh` 会直接退出。
 - **编译失败**：先看 `cmake`/`nvcc` 的报错；`provision.sh` 是幂等的，修好后可重跑。
 - **下载失败**：Hugging Face 的 GGUF 仓库未设门禁，但网络仍可能超时；重跑即可，已下载的会跳过。
