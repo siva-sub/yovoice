@@ -167,17 +167,21 @@ type Draft struct {
 	Performance *CharacterPerformance `json:"performance,omitempty"`
 	SynthesisSettings
 	// Gate 只属于章节（kind=story）；BookID 是所属卷，旧作品在迁移时归入“未归档”。
-	Gate        *Gate             `json:"gate,omitempty"`
-	Kind        string            `json:"kind,omitempty"`
-	CharacterID string            `json:"characterId,omitempty"`
-	BookID      string            `json:"bookId,omitempty"`
-	CreatedAt   *time.Time        `json:"createdAt,omitempty"`
-	UpdatedAt   *time.Time        `json:"updatedAt,omitempty"`
-	ID          string            `json:"id"`
-	Title       string            `json:"title"`
-	Text        string            `json:"text"`
-	Subtitles   *SubtitleDocument `json:"subtitles,omitempty"`
-	Timeline    *AudioTimeline    `json:"timeline,omitempty"`
+	Gate *Gate `json:"gate,omitempty"`
+	// QA 是章节的音频验收结果；旧作品没有验收记录时按 unchecked 处理。
+	QA          *QARecord `json:"qa,omitempty"`
+	Kind        string    `json:"kind,omitempty"`
+	CharacterID string    `json:"characterId,omitempty"`
+	BookID      string    `json:"bookId,omitempty"`
+	// Chapter 是章节在卷内的章号；0 表示未设置，复核包导出时回落到标题末尾的数字。
+	Chapter   int               `json:"chapter,omitempty"`
+	CreatedAt *time.Time        `json:"createdAt,omitempty"`
+	UpdatedAt *time.Time        `json:"updatedAt,omitempty"`
+	ID        string            `json:"id"`
+	Title     string            `json:"title"`
+	Text      string            `json:"text"`
+	Subtitles *SubtitleDocument `json:"subtitles,omitempty"`
+	Timeline  *AudioTimeline    `json:"timeline,omitempty"`
 	// Score 仅编曲作品使用，ModelID 指向渲染所用的音色库。
 	Score *Score `json:"score,omitempty"`
 }
