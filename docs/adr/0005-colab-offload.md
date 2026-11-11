@@ -1,6 +1,6 @@
 # ADR-0005：推理卸载到 Colab，界面与混音留在本机
 
-- 状态：已实现脚手架（`scripts/colab/`），待实机验证
+- 状态：脚手架与实机跑手册已交付（`scripts/colab/`、`docs/colab-runbook.md`），尚未实机验证
 - 日期：2026-11-11
 - 相关：ADR-0003
 - 实施细节见 [docs/colab-offload.md](../colab-offload.md)
