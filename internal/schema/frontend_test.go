@@ -18,8 +18,7 @@ func TestFrontendTypesMatchSchema(t *testing.T) {
 	interfaces := tsInterfaces(readTypeScript(t, testkit.RepoFile(t, "web", "src", "shared", "workbench")))
 	// 仅后端保留、界面有意不读写的字段。
 	goOnly := map[string][]string{
-		"AudioClip":    {"fadeIn", "fadeOut", "cueId"},     // 旧版淡化，读取时忽略；cueId 供后端核对 hit 提前量
-		"AudioLane":    {"role"},                           // 四层音轨角色，界面尚未读写（ADR-0004）
+		"AudioClip":    {"fadeIn", "fadeOut"},              // 旧版淡化，读取时忽略
 		"ModelPackage": {"revision", "repo", "modelScope"}, // 下载时固定的仓库与修订号
 	}
 	// 仅界面使用、不随状态保存的字段。
@@ -32,7 +31,7 @@ func TestFrontendTypesMatchSchema(t *testing.T) {
 		schema.CharacterPreview{}, schema.Character{}, schema.Voice{}, schema.InstalledModel{}, schema.Generation{},
 		schema.GenerationSegment{}, schema.AudioCheck{}, schema.AudioIssue{}, schema.VoiceExcerpt{}, schema.Activity{}, schema.Preferences{}, schema.State{}, catalog.ModelPackage{},
 		schema.Score{}, schema.ScoreSection{}, schema.ScoreTrack{}, schema.Humanize{}, schema.ScoreRamp{}, schema.ScoreNote{},
-		schema.Gate{}, schema.Book{}, schema.Series{},
+		schema.Gate{}, schema.Book{}, schema.Series{}, schema.QARecord{}, schema.Reviewer{},
 		schema.AIProvider{}, schema.AITest{}, schema.AITask{}, schema.MelodyResult{}, schema.TranscriptResult{}, schema.Transcript{}, schema.TranscriptContent{}, schema.TranscriptCaption{},
 		schema.AssistantMessage{}, schema.AssistantBlock{}, schema.AssistantToolCard{}, schema.AssistantSession{}, schema.AssistantSessions{}, schema.AssistantTurn{}, schema.AssistantNav{}, schema.AssistantUpdate{}, schema.AssistantLive{},
 	} {

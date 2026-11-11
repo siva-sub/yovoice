@@ -36,9 +36,11 @@ export interface Book { id: string; title: string; seriesId?: string; order?: nu
 export interface Series { id: string; title: string; createdAt?: string; updatedAt?: string }
 /** 验收记录，与 Go 的 schema.QARecord 一致：verdict 为 fail 时 note 必填（ADR-0013）。 */
 export interface QARecord { wer: number; lufs: number; peak: number; silences: number; verdict: 'pass' | 'fail' | 'unchecked'; at?: string; note?: string }
+/** 复核人及其角色，与 Go 的 schema.Reviewer 一致：reviewer 只能改 speakerId 与 kind（ADR-0011）。 */
+export interface Reviewer { id: string; name: string; role: string }
 export interface SubtitleDocument { speakers: SubtitleSpeaker[]; cues: SubtitleCue[] }
-export interface AudioClip { id: string; generationId?: string; assetId?: string; start: number; offset: number; duration: number; gainDb?: number }
-export interface AudioLane { id: string; name: string; muted: boolean; solo?: boolean; locked?: boolean; gainDb?: number; duckDb?: number; clips: AudioClip[] }
+export interface AudioClip { id: string; generationId?: string; assetId?: string; start: number; offset: number; duration: number; gainDb?: number; cueId?: string }
+export interface AudioLane { id: string; name: string; muted: boolean; solo?: boolean; locked?: boolean; gainDb?: number; duckDb?: number; role?: string; clips: AudioClip[] }
 export interface AudioAsset { id: string; name: string; fileName: string; duration: number }
 export interface AudioMarker { id: string; time: number; name: string }
 export interface AudioTimeline { markers?: AudioMarker[]; regenerateMode?: 'ripple' | 'preserve'; assets?: AudioAsset[]; acceptedGenerations?: string[]; tracks: AudioLane[] }
@@ -145,6 +147,8 @@ export interface State {
   books?: Book[];
   /** 系列列表，与 Go 的 schema.State.Series 一致。 */
   series?: Series[];
+  /** 复核人与角色，与 Go 的 schema.State.Reviewers 一致。 */
+  reviewers?: Reviewer[];
 }
 
 // 引擎写出的旋律谱，与 Go 的 schema.MelodyResult 一致：plan 为按歌词出谱，cover 为从歌曲扒谱；只在本次会话有效。
