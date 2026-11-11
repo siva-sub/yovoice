@@ -116,6 +116,10 @@ func (w *Workbench) startGeneration(d schema.Draft, previewID, cueID, clipID str
 			diag.Log(w.Store.Root, "generation.rejected", "project_id", d.ID, "error", diag.Error(err))
 		}
 	}()
+	// 章节必须过闸门：未 verified 的故事作品不进入任何引擎调用，也不占用后台操作槽（ADR-0001）。
+	if d.Kind == "story" && d.ChapterStatus() != schema.GateVerified {
+		return nil, msg.Err(msg.ErrChapterNotVerified, nil)
+	}
 	if d.Kind == "score" {
 		return w.startScore(d, saveDraft)
 	}

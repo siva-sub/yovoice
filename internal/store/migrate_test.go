@@ -35,6 +35,7 @@ func TestMigrateLegacyData(t *testing.T) {
 		{"INSERT INTO models (key, pos, data) VALUES ('custom', 1, ?)", []any{`{"id":"custom","path":"/models/custom.gguf","managed":true}`}},
 		// 版本 1 还没有后来加的表。
 		{"DROP TABLE transcripts", nil},
+		{"DROP TABLE books", nil},
 		{"PRAGMA user_version = 1", nil},
 	} {
 		_, err = s.db.Exec(step.query, step.args...)
@@ -104,5 +105,44 @@ func TestNewDatabaseIsCurrent(t *testing.T) {
 	}
 	if files, _ := filepath.Glob(filepath.Join(root, upgradeSnapshot+"-*.db")); len(files) != 0 {
 		t.Fatal("新建的状态库不应留升级副本", files)
+	}
+	if books := s.Read().Books; len(books) != 1 || books[0].ID != schema.UnfiledBookID || books[0].Title != "未归档" {
+		t.Fatal("新建的状态库应含默认卷", books)
+	}
+}
+
+// 书层升级：旧作品归入“未归档”，闸门留空（读取时视为 pending），原内容保持可读。
+func TestMigrationFilesLegacyWorksIntoUnfiledBook(t *testing.T) {
+	root := t.TempDir()
+	s, err := New(root)
+	must(t, err)
+	id := schema.NewID()
+	must(t, s.Update(func(state *schema.State) {
+		state.Drafts = []schema.Draft{{ID: id, Title: "第 6 章", Kind: "story", Text: "正文"}}
+	}, true))
+	// 回到还没有书层的版本：删掉 books 表，让旧作品没有 bookId 与 gate。
+	_, err = s.db.Exec("DROP TABLE books")
+	must(t, err)
+	_, err = s.db.Exec("PRAGMA user_version = 4")
+	must(t, err)
+	must(t, s.Close())
+
+	s, err = New(root)
+	must(t, err)
+	defer s.Close()
+	state := s.Read()
+	if len(state.Books) != 1 || state.Books[0].ID != schema.UnfiledBookID || state.Books[0].Title != "未归档" {
+		t.Fatalf("迁移后应有“未归档”卷：%+v", state.Books)
+	}
+	if state.Drafts[0].BookID != schema.UnfiledBookID || state.Drafts[0].Gate != nil || state.Drafts[0].Title != "第 6 章" {
+		t.Fatalf("旧作品应归入未归档且闸门留空：%+v", state.Drafts[0])
+	}
+	if state.Drafts[0].ChapterStatus() != schema.GatePending {
+		t.Fatal("没有闸门的旧作品应视为 pending")
+	}
+	var data string
+	must(t, s.db.QueryRow("SELECT data FROM drafts WHERE key = ?", id).Scan(&data))
+	if !strings.Contains(data, `"bookId":"unfiled"`) {
+		t.Fatalf("升级后应保存归属：%s", data)
 	}
 }

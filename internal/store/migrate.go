@@ -52,6 +52,38 @@ var migrations = []migration{
 	}},
 	// 4：转写页的转写记录改为长期保存。
 	{sql: `CREATE TABLE transcripts (key TEXT PRIMARY KEY, pos INTEGER NOT NULL, data TEXT NOT NULL);`},
+	// 5：新增卷（书）与作品的归属；旧作品归入“未归档”，闸门留空（读取时视为 pending）。
+	{sql: `CREATE TABLE books (key TEXT PRIMARY KEY, pos INTEGER NOT NULL, data TEXT NOT NULL);`,
+		data: func(tx *sql.Tx, root string) error {
+			if e := defaultBooks(tx); e != nil {
+				return e
+			}
+			return rewriteRows(tx, "drafts", func(_ string, data []byte) ([]byte, error) {
+				var d schema.Draft
+				if e := json.Unmarshal(data, &d); e != nil {
+					return nil, e
+				}
+				if d.BookID != "" {
+					return nil, nil
+				}
+				d.BookID = schema.UnfiledBookID
+				return json.Marshal(d)
+			})
+		}},
+}
+
+// defaultBooks 写入默认卷，让迁移后的旧作品有可归属的书。
+func defaultBooks(tx *sql.Tx) error {
+	for pos, book := range schema.DefaultBooks() {
+		b, e := json.Marshal(book)
+		if e != nil {
+			return e
+		}
+		if _, e = tx.Exec("INSERT INTO books (key, pos, data) VALUES (?, ?, ?)", book.ID, pos, string(b)); e != nil {
+			return e
+		}
+	}
+	return nil
 }
 
 func backfillModelSHA256(data []byte) ([]byte, error) {

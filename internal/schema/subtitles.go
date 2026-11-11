@@ -39,6 +39,9 @@ func (d Draft) SubtitleDrafts() ([]Draft, error) {
 	texts := make([]string, 0, len(document.Cues))
 	ids := map[string]bool{}
 	for _, cue := range document.Cues {
+		if err := ValidateCueMarks(cue); err != nil {
+			return nil, err
+		}
 		if cue.ID != "" {
 			if len(cue.ID) > 64 || ids[cue.ID] {
 				return nil, bad
