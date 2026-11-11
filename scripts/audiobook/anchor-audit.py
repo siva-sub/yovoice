@@ -32,6 +32,8 @@ RATE_FAST = 3.2
 VOICED_PERIODICITY = 0.45
 # 浊音比低于此值判为气声；实测坏样本集中在 0.3 以下。
 VOICED_FRAC_MIN = 0.55
+# 锚点太短时指纹不稳，克隆出来会漂；冻结闸门与审计共用这一条（ADR-0006）。
+MIN_DURATION_S = 1.2
 # 中位 F0 允许偏离设计目标的比例。
 F0_TOLERANCE = 0.10
 
@@ -158,9 +160,8 @@ def audit(path: Path, text: str = "", expect_f0: float = 0.0, reference: np.ndar
     issues = result["issues"]
     advice = result["advisory"]
     # 硬闸门只留可以绝对判定的两类：锚点太短（指纹不稳）、测不到基频（无法克隆）。
-    if duration < 1.2:
-        # 太短的锚点指纹不稳，克隆出来会漂。
-        issues.append("锚点太短（< 1.2 s）")
+    if duration < MIN_DURATION_S:
+        issues.append(f"锚点太短（< {MIN_DURATION_S:g} s）")
     if not f0:
         issues.append("测不到基频")
     # 气声是实测能抓到的失败类（direfang 这类浊音比 0.21 的样本），计入硬闸门。
