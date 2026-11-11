@@ -4852,5 +4852,11 @@
   },
   "@yovoice.error.renderBudgetExceeded": {
     "defaultMessage": "Estimated render cost exceeds the remaining compute units, so the batch was not started. Use a faster model, render fewer chapters, or explicitly override."
+  },
+  "@yovoice.nav.bookshelf": {
+    "defaultMessage": "Giá sách"
+  },
+  "@yovoice.nav.cast": {
+    "defaultMessage": "Dàn vai"
   }
 }
