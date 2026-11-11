@@ -18,6 +18,9 @@ export const kindMarks: Record<CueKind, string> = { narration: '~', dialogue: '"
 
 export const kindLabels: Record<CueKind, string> = { narration: '叙述', dialogue: '对白', thought: '心声' };
 
+/** 改类型的键位：与 1–9/0 改说话人互不冲突。 */
+export const kindKeys: Record<'d' | 'n' | 't', CueKind> = { d: 'dialogue', n: 'narration', t: 'thought' };
+
 export function reviewable(confidence?: number): boolean {
   return confidence !== undefined && confidence < reviewThreshold;
 }

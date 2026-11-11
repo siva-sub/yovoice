@@ -17,13 +17,15 @@ export interface ReadingPageProps {
   /** 页面是否可见；离开后阅读页的全局键位与试听都要停。 */
   isActive: boolean;
   onCueChange: (change: CueReassignment) => void;
+  /** 批量改派一次写回；避免逐条回调基于同一份旧字幕互相覆盖。 */
+  onCuesChange?: (changes: CueReassignment[]) => void;
   onError?: (message: string) => void;
   /** 闸门动作成功后取回这一章的最新状态；书架与阅读页共用。 */
   onRefreshChapter?: (id: string) => Promise<void>;
 }
 
 // 归因阅读页：上半是整章阅读与改派，下半是当前作品的逐句 take。
-export function ReadingPage({ chapterId, title, subtitles, gate, generations, isActive, onCueChange, onError, onRefreshChapter }: ReadingPageProps) {
+export function ReadingPage({ chapterId, title, subtitles, gate, generations, isActive, onCueChange, onCuesChange, onError, onRefreshChapter }: ReadingPageProps) {
   // 动作成功后先显示新状态；状态推送到达或刷新返回后以 gate 为准。换章时清掉上一章的临时状态。
   const [status, setStatus] = useState<Gate['status'] | null>(null);
   useEffect(() => setStatus(gate?.status ?? null), [gate?.status, chapterId]);
@@ -36,7 +38,7 @@ export function ReadingPage({ chapterId, title, subtitles, gate, generations, is
       <AudiobookReadingView chapterId={chapterId} title={title} subtitles={subtitles}
         gate={{ status: shown, textSha: gate?.textSha ?? '', verifiedAt: gate?.verifiedAt, note: gate?.note }}
         gateActions={<ChapterGateActions chapterId={chapterId} status={shown} onStatus={setStatus} onRefresh={onRefreshChapter} />}
-        isActive={isActive} onCueChange={onCueChange} />
+        isActive={isActive} onCueChange={onCueChange} onCuesChange={onCuesChange} />
     </VStack>
     <TakeList subtitles={subtitles} generations={generations} isActive={isActive} onError={onError} />
   </VStack>;

@@ -126,12 +126,21 @@ export function WorkbenchChrome({ state, catalog, catalogRevision, engine, ready
   useEffect(() => { if (ready) setDraft(current => Timeline.accept(current, state.history)); }, [state.history, draft.id, ready, setDraft]);
   const generate = useGenerate({ state, engine, catalog, draft, page, openSettings, run, persistDraft, setVoicePicker });
   const generations = state.history.filter(item => item.settings.id === draft.id);
-  // 归因阅读页的改派写回当前作品的字幕：只改这一句的说话人，人工决定后清空置信度。
-  const applyCueChange = (assignment: CueReassignment) => {
-    const subtitles = draft.subtitles;
-    if (!subtitles) return;
-    change({ subtitles: { ...subtitles, cues: subtitles.cues.map((cue, index) => index === assignment.index ? { ...cue, speakerId: assignment.speakerId, confidence: assignment.confidence } : cue) } });
-  };
+  // 归因阅读页的改派写回当前作品的字幕：人工改过的句子清空置信度；批量改派一次合并，避免逐条写回时互相覆盖。
+  const applyCueChanges = useCallback((changes: CueReassignment[]) => {
+    if (!changes.length) return;
+    setDraftPersisted(true);
+    setDraft(current => {
+      const subtitles = current.subtitles;
+      if (!subtitles) return current;
+      const byIndex = new Map(changes.map(change => [change.index, change]));
+      return { ...current, subtitles: { ...subtitles, cues: subtitles.cues.map((cue, index) => {
+        const change = byIndex.get(index);
+        return change ? { ...cue, speakerId: change.speakerId, kind: change.kind ?? cue.kind, confidence: change.confidence } : cue;
+      }) } };
+    });
+  }, [setDraft, setDraftPersisted]);
+  const applyCueChange = useCallback((assignment: CueReassignment) => applyCueChanges([assignment]), [applyCueChanges]);
   const activity = state.activity; const busy = activity?.status === 'running';
   const projectList = state.drafts.map(d => d.id === draft.id ? { ...draft, createdAt: d.createdAt, updatedAt: d.updatedAt } : d);
   const [voiceQuery, setVoiceQuery] = useState('');
@@ -298,7 +307,7 @@ export function WorkbenchChrome({ state, catalog, catalogRevision, engine, ready
             <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><TranscribePage state={state} openSettings={() => openSettings('qwen3-asr-0.6b-q8')} /></Suspense>
           </PageBoundary></VStack> : null}
           {visited.has('reading') ? <VStack id="reading-panel" className="page-panel" gap={0} style={{ display: page === 'reading' ? 'flex' : 'none' }}><PageBoundary name="reading" resetKey={draft.id}>
-            <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><ReadingPage chapterId={draft.id} title={draft.title} subtitles={draft.subtitles} gate={draft.gate} generations={generations} isActive={page === 'reading'} onCueChange={applyCueChange} onError={onError} onRefreshChapter={refreshChapter} /></Suspense>
+            <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><ReadingPage chapterId={draft.id} title={draft.title} subtitles={draft.subtitles} gate={draft.gate} generations={generations} isActive={page === 'reading'} onCueChange={applyCueChange} onCuesChange={applyCueChanges} onError={onError} onRefreshChapter={refreshChapter} /></Suspense>
           </PageBoundary></VStack> : null}
           {visited.has('shelf') ? <VStack id="shelf-panel" className="page-panel" gap={0} style={{ display: page === 'shelf' ? 'flex' : 'none' }}><PageBoundary name="shelf">
             <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><Bookshelf books={state.books} series={state.series} drafts={projectList} history={state.history} onOpen={openChapter} isActive={page === 'shelf'} onRefreshChapter={refreshChapter} /></Suspense>

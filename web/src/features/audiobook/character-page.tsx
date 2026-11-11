@@ -13,6 +13,9 @@ export interface CharacterPageProps {
 
 interface ChapterAudit { title: string; verdict: Exclude<QARecord['verdict'], 'unchecked'> }
 
+// 锚点超过这个长度时，逐行渲染会静默退回 eager（ADR-0003 更正：RTF 从 0.44 变到约 1.9）。
+const anchorEagerSeconds = 10;
+
 // 角色页（ADR-0006/0008）：角色卡、锚点候选与别名。状态里没有的字段显示为空缺，不用示例数据补齐。
 export function CharacterPage({ characters, voices, drafts }: CharacterPageProps) {
   return <Layout className="audiobook-cast-page" height="fill" padding={0}
@@ -43,6 +46,7 @@ function CastCard({ character, voices, drafts }: { character: Character; voices:
   const design = character.settings.voiceDescription?.trim() ?? '';
   const audits = chapterAudits(character, drafts);
   const preview = character.preview;
+  const anchorTooLong = !!voice && voice.duration > anchorEagerSeconds;
   return <VStack className="audiobook-cast-card" gap={3} data-testid="audiobook-cast-card" data-character-id={character.id}>
     <HStack className="audiobook-cast-card-head" gap={3} vAlign="center" wrap="wrap">
       <Heading level={2}>{character.name}</Heading>
@@ -78,6 +82,9 @@ function CastCard({ character, voices, drafts }: { character: Character; voices:
           <Text type="supporting">需要后端的候选数组</Text>
         </VStack>)}
       </HStack>
+      {anchorTooLong ? <Text className="audiobook-anchor-warning" type="supporting" role="status" data-testid="audiobook-anchor-warning">
+        锚点 {formatTime(voice.duration)}，超过约 {anchorEagerSeconds} 秒：逐行渲染会静默退回 eager，渲染成本约 4 倍（RTF 0.44 → 1.9）。
+      </Text> : null}
     </VStack>
   </VStack>;
 }
