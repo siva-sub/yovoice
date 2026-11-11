@@ -4846,5 +4846,8 @@
   },
   "@yovoice.error.chapterNotVerified": {
     "defaultMessage": "This chapter has not been confirmed as read. Confirm it before rendering."
+  },
+  "@yovoice.nav.reading": {
+    "defaultMessage": "Reading"
   }
 }

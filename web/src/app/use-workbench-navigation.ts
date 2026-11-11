@@ -41,8 +41,8 @@ export function useWorkbenchNavigation({ draft, catalog, preferences, overlay, s
   // 页面第一次打开时才挂载，之后保持挂载（切走只隐藏），切回来时保留编辑、滚动与播放状态；启动时只渲染当前页。
   const [visited, setVisited] = useState(() => new Set([page]));
   if (!visited.has(page)) setVisited(new Set(visited).add(page));
-  // 作品只在编辑页和版本记录页处于打开状态。
-  useEffect(() => setActive(page === 'create' || page === 'history'), [page, setActive]);
+  // 作品只在编辑页、版本记录页和归因阅读页处于打开状态；归因改派要立即进入自动保存。
+  useEffect(() => setActive(page === 'create' || page === 'history' || page === 'reading'), [page, setActive]);
   const [settingsFocus, setSettingsFocus] = useState<{ tab: string; modelId: string; request: number } | undefined>();
   // 缺的是音色库时打开独立的音色库页，其余模型在“模型”页。
   const openSettings = (modelId = draft.modelId, requested = 'models') => { const family = catalog.find(m => m.id === modelId)?.family; const tab = requested === 'models' && family ? modelTab(family) : requested; setSettingsFocus({ tab, modelId, request: performance.now() }); setPage('settings'); };

@@ -32,6 +32,8 @@ export interface AudiobookReadingViewProps {
   onCueChange?: (change: CueReassignment) => void;
   /** 提词器播放一句的接口；接入音频后在这里播放，未提供时只走高亮。 */
   playCue?: (cue: SubtitleCue, index: number) => void;
+  /** 页面是否可见；接入导航后切到其他页时全局键位不再改派，默认可见。 */
+  isActive?: boolean;
 }
 
 const gateLabels: Record<Gate['status'], string> = { pending: '待读', read: '已读', attributed: '已归因', verified: '已校验' };
@@ -45,7 +47,7 @@ export function AudiobookReadingView(props: AudiobookReadingViewProps) {
 interface Assignment { speakerId: string; confidence?: number }
 interface UndoEntry extends Assignment { index: number }
 
-function ReadingChapter({ subtitles, title, gate, onCueChange, playCue }: AudiobookReadingViewProps) {
+function ReadingChapter({ subtitles, title, gate, onCueChange, playCue, isActive = true }: AudiobookReadingViewProps) {
   const cues = subtitles.cues;
   // 键位在进入章节时按首次出场顺序固定，之后改派不重排。
   const [cast] = useState(() => speakerKeys(subtitles.speakers, cues));
@@ -94,8 +96,9 @@ function ReadingChapter({ subtitles, title, gate, onCueChange, playCue }: Audiob
     onCueChange?.({ index, cueId: cues[index].id, speakerId: assignment.speakerId, confidence: assignment.confidence });
   }
 
-  // 快捷键在页面任意位置生效；焦点在输入框里时让给输入框自身的编辑操作。
+  // 快捷键在页面任意位置生效；页面被导航切走时让给当前页面。焦点在输入框里时让给输入框自身的编辑操作。
   const onKey = useEffectEvent((event: KeyboardEvent) => {
+    if (!isActive) return;
     const target = event.target as HTMLElement | null;
     if (target?.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); undo(); return; }
