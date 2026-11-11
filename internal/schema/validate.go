@@ -2,9 +2,11 @@ package schema
 
 import (
 	"math"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf16"
 	"yovoice/internal/catalog"
 	"yovoice/internal/msg"
@@ -41,6 +43,9 @@ func Deref(s *string) string {
 	return *s
 }
 func Validate(d Draft) error {
+	if err := d.ValidateChapter(); err != nil {
+		return err
+	}
 	if err := d.ValidateRuntime(); err != nil {
 		return err
 	}
@@ -363,6 +368,74 @@ func validateStableAudio(d Draft) error {
 
 func InRange(v, min, max float64) bool {
 	return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= min && v <= max
+}
+
+// GateStatuses 是闸门允许的状态；只有 verified 允许渲染。
+var GateStatuses = []string{GatePending, GateRead, GateAttributed, GateVerified}
+
+// CueKinds 是台词类型：旁白、对白与心声。
+var CueKinds = []string{"narration", "dialogue", "thought"}
+
+// CueEvidenceMarks 是归因判据标记（ADR-0002）；空串表示抽取阶段没有记录判据。
+var CueEvidenceMarks = []string{"prose", "inner_monologue", "lead_next", "lead_prev", "tag_next", "tag_prev", "alternation", "addressed_inverse", "continuity"}
+
+var (
+	gateTextSHAPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
+	bookIDPattern      = regexp.MustCompile(`^[a-z0-9-]{1,64}$`)
+)
+
+// ValidateGate 校验闸门：状态四选一；read/attributed/verified 必须带 16 位十六进制的正文摘要，
+// verified 还必须带 RFC3339 的确认时间。没有闸门的旧作品不在这里报错，由 ChapterStatus 视为 pending。
+func ValidateGate(g *Gate) error {
+	if g == nil {
+		return nil
+	}
+	if !slices.Contains(GateStatuses, g.Status) {
+		return msg.Err(msg.ErrRequestInvalid, nil)
+	}
+	if g.Status != GatePending && !gateTextSHAPattern.MatchString(g.TextSHA) {
+		return msg.Err(msg.ErrRequestInvalid, nil)
+	}
+	if g.Status == GateVerified {
+		if _, err := time.Parse(time.RFC3339, g.VerifiedAt); err != nil {
+			return msg.Err(msg.ErrRequestInvalid, nil)
+		}
+	}
+	return nil
+}
+
+// ValidateCueMarks 校验一句台词的置信度、类型与判据标记；三个字段都可缺省。
+func ValidateCueMarks(c SubtitleCue) error {
+	if c.Confidence != nil && !InRange(*c.Confidence, 0, 1) {
+		return msg.Err(msg.ErrSubtitleInvalid, nil)
+	}
+	if c.Kind != "" && !slices.Contains(CueKinds, c.Kind) {
+		return msg.Err(msg.ErrSubtitleInvalid, nil)
+	}
+	if c.Evidence != "" && !slices.Contains(CueEvidenceMarks, c.Evidence) {
+		return msg.Err(msg.ErrSubtitleInvalid, nil)
+	}
+	return nil
+}
+
+// ValidateBookID 校验卷的标识：非空，只用小写字母、数字与连字符，最长 64 位。
+func ValidateBookID(id string) error {
+	if !bookIDPattern.MatchString(id) {
+		return msg.Err(msg.ErrRequestInvalid, nil)
+	}
+	return nil
+}
+
+// ValidateChapter 校验章节的闸门与归属格式；旧作品没有闸门与归属时也能通过。
+// 归属能否在 State.Books 里找到由 workbench 校验，这里只看格式。
+func (d Draft) ValidateChapter() error {
+	if err := ValidateGate(d.Gate); err != nil {
+		return err
+	}
+	if d.BookID != "" {
+		return ValidateBookID(d.BookID)
+	}
+	return nil
 }
 
 func (d Draft) RequiresVoice() bool {

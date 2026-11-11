@@ -52,6 +52,10 @@ func TestCharacterPerformancesAndCueSnapshots(t *testing.T) {
 	d.Kind = "story"
 	d.Subtitles = &schema.SubtitleDocument{Speakers: []schema.SubtitleSpeaker{{ID: "s", CharacterID: c.ID, Settings: &d.SynthesisSettings}}, Cues: []schema.SubtitleCue{{ID: "one", Start: 0, End: 1000, Text: "你好", SpeakerID: "s"}, {ID: "two", Start: 1000, End: 2000, Text: "站住", SpeakerID: "s", Performance: &c.Performances[0]}}}
 	must(t, w.SaveDraft(d))
+	// 这是 kind=story 的章节，单句重生成前必须先过闸门：ConfirmRead 记指纹，VerifyChapter 确认。
+	must(t, w.ConfirmRead(d.ID))
+	must(t, w.VerifyChapter(d.ID, ""))
+	d = w.Store.Read().Drafts[0]
 	parts, err := d.SubtitleDrafts()
 	must(t, err)
 	if parts[0].Mode != d.Mode || parts[1].Mode != "reference" || parts[1].EmotionStrength != .9 || schema.Deref(parts[1].VoiceID) != emotion.ID || parts[1].ModelID != "omnivoice-q8" {

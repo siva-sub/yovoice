@@ -39,6 +39,10 @@ func (w *Workbench) saveDraft(d schema.Draft) (err error) {
 	if _, err := d.SubtitleDrafts(); err != nil {
 		return err
 	}
+	stage = "validate_chapter"
+	if err := d.ValidateChapter(); err != nil {
+		return err
+	}
 	stage = "validate_limits"
 	if !schema.ValidID(d.ID) || schema.TextLen(d.Text) > 12000 || schema.TextLen(d.Title) > 120 || schema.TextLen(d.EmotionText) > 500 || schema.TextLen(d.VoiceDescription) > 500 || schema.TextLen(d.ReferenceText) > 2000 || schema.TextLen(d.Lyrics) > 4000 || len(d.Abc) > score.ABCMaxLength || !schema.ScoreWithinLimits(d.Score) {
 		return msg.Err(msg.ErrDraftLimits, nil)

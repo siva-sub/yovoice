@@ -89,11 +89,15 @@ type CharacterPerformance struct {
 
 type SubtitleCue struct {
 	Performance *CharacterPerformance `json:"performance,omitempty"`
-	ID          string                `json:"id,omitempty"`
-	Start       int64                 `json:"start"`
-	End         int64                 `json:"end"`
-	Text        string                `json:"text"`
-	SpeakerID   string                `json:"speakerId"`
+	// Confidence 是机器归因的置信度 0..1，人工改写后置空；Evidence 是判据标记，Kind 是台词类型。
+	Confidence *float64 `json:"confidence,omitempty"`
+	Evidence   string   `json:"evidence,omitempty"`
+	Kind       string   `json:"kind,omitempty"`
+	ID         string   `json:"id,omitempty"`
+	Start      int64    `json:"start"`
+	End        int64    `json:"end"`
+	Text       string   `json:"text"`
+	SpeakerID  string   `json:"speakerId"`
 }
 type SubtitleDocument struct {
 	Speakers []SubtitleSpeaker `json:"speakers"`
@@ -138,11 +142,35 @@ type AudioTimeline struct {
 	Tracks              []AudioLane   `json:"tracks"`
 	AcceptedGenerations []string      `json:"acceptedGenerations,omitempty"`
 }
+
+// Gate 是章节的归因闸门：pending → read → attributed → verified，任何渲染入口在 verified 之前拒绝执行。
+// 没有闸门的旧作品视为 pending。
+type Gate struct {
+	Note       string `json:"note,omitempty"`
+	Status     string `json:"status"` // pending | read | attributed | verified
+	TextSHA    string `json:"textSha"`
+	VerifiedAt string `json:"verifiedAt,omitempty"` // RFC3339，仅 verified 时有值
+}
+
+// Book 是卷（书）容器：章节作品通过 BookID 归属到其中，只存归属与导出标准，不复制章节内容。
+type Book struct {
+	ID             string `json:"id"`
+	Title          string `json:"title"`
+	SeriesID       string `json:"seriesId,omitempty"`
+	Order          int    `json:"order,omitempty"`
+	LoudnessTarget string `json:"loudnessTarget,omitempty"` // 默认 "-19 LUFS / -3 dBTP"
+	CreatedAt      string `json:"createdAt,omitempty"`
+	UpdatedAt      string `json:"updatedAt,omitempty"`
+}
+
 type Draft struct {
 	Performance *CharacterPerformance `json:"performance,omitempty"`
 	SynthesisSettings
+	// Gate 只属于章节（kind=story）；BookID 是所属卷，旧作品在迁移时归入“未归档”。
+	Gate        *Gate             `json:"gate,omitempty"`
 	Kind        string            `json:"kind,omitempty"`
 	CharacterID string            `json:"characterId,omitempty"`
+	BookID      string            `json:"bookId,omitempty"`
 	CreatedAt   *time.Time        `json:"createdAt,omitempty"`
 	UpdatedAt   *time.Time        `json:"updatedAt,omitempty"`
 	ID          string            `json:"id"`
@@ -360,6 +388,7 @@ type State struct {
 	Characters            []Character         `json:"characters"`
 	Previews              []CharacterPreview  `json:"previews"`
 	Drafts                []Draft             `json:"drafts"`
+	Books                 []Book              `json:"books"`
 	Voices                []Voice             `json:"voices"`
 	Models                []InstalledModel    `json:"models"`
 	History               []Generation        `json:"history"`
@@ -453,6 +482,14 @@ type InstalledRuntime struct {
 	Version string `json:"version"`
 }
 
+// UnfiledBookID 是默认卷“未归档”的标识：迁移的旧作品与尚未归档的作品都落在这里。
+const UnfiledBookID = "unfiled"
+
+// DefaultBooks 是默认卷；状态库里始终保留它，章节的 BookID 才能在 State.Books 里找到。
+func DefaultBooks() []Book {
+	return []Book{{ID: UnfiledBookID, Title: "未归档"}}
+}
+
 func DefaultState() State {
-	return State{Characters: []Character{}, Previews: []CharacterPreview{}, Drafts: []Draft{DefaultDraft()}, Voices: []Voice{}, Models: []InstalledModel{}, History: []Generation{}, Preferences: Preferences{DownloadSource: "modelscope", Backend: "cpu"}}
+	return State{Characters: []Character{}, Previews: []CharacterPreview{}, Drafts: []Draft{DefaultDraft()}, Books: DefaultBooks(), Voices: []Voice{}, Models: []InstalledModel{}, History: []Generation{}, Preferences: Preferences{DownloadSource: "modelscope", Backend: "cpu"}}
 }
