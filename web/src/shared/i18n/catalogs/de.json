@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "Besetzung"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "Ausstehende Kapitel auflisten"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "Liste die Kapitel im Bücherregal auf, die noch gelesen, geprüft, gerendert oder abgenommen werden müssen, nach Buch und Kapitelnummer sortiert"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "Was ist als Nächstes dran?"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "Nenne mir die drei nächsten Aufgaben im Bücherregal und warum"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "Dieses Kapitel prüfen"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "Prüfe die Sprecherzuordnung dieses Kapitels und liste die Zeilen mit geringer Sicherheit auf"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "Verdächtige Zeilen finden"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "Finde Zeilen in diesem Kapitel, deren Sprecher falsch sein könnte, und erkläre die Hinweise"
   }
 }

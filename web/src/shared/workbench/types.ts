@@ -36,6 +36,8 @@ export interface Book { id: string; title: string; seriesId?: string; order?: nu
 export interface Series { id: string; title: string; createdAt?: string; updatedAt?: string }
 /** 验收记录，与 Go 的 schema.QARecord 一致：verdict 为 fail 时 note 必填（ADR-0013）。 */
 export interface QARecord { wer: number; lufs: number; peak: number; silences: number; verdict: 'pass' | 'fail' | 'unchecked'; at?: string; note?: string }
+/** 书级待办项，与 Go 的 workbench.QueueItem 一致：kind 是 read | verify | render | qa。 */
+export interface QueueItem { kind: string; draftId: string; chapter: number; reason: string }
 /** 复核人及其角色，与 Go 的 schema.Reviewer 一致：reviewer 只能改 speakerId 与 kind（ADR-0011）。 */
 export interface Reviewer { id: string; name: string; role: string }
 export interface SubtitleDocument { speakers: SubtitleSpeaker[]; cues: SubtitleCue[] }

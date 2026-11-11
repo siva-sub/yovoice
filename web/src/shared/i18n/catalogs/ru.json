@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "Состав"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "Показать ожидающие главы"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "Перечисли главы на книжной полке, которые ещё нужно прочитать, проверить, отрендерить или принять, по книге и номеру главы"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "Что дальше?"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "Назови три ближайших действия на книжной полке и объясни почему"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "Проверить эту главу"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "Проверь распределение голосов в этой главе и перечисли строки с низкой уверенностью"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "Найти подозрительные строки"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "Найди строки в этой главе, где говорящий мог быть определён неверно, и объясни признаки"
   }
 }

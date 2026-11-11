@@ -95,6 +95,13 @@ export function WorkbenchChrome({ state, catalog, catalogRevision, engine, ready
   function selectDraft(item: Draft) { run(async () => { if (draftPersisted) await persistDraft(draft); setDraft(item.id === draft.id ? draft : item); setDraftPersisted(true); setPage('create'); }); }
   // 书架打开某一章：先保存当前作品，再按动作去归因阅读页或章节工作区。
   function openChapter(item: Draft, target: 'reading' | 'create') { run(async () => { if (draftPersisted) await persistDraft(draft); setDraft(item.id === draft.id ? draft : item); setDraftPersisted(true); setPage(target); }); }
+  // 闸门动作成功后取回这一章的最新状态：服务端推送会更新书架，阅读页的当前作品也要立即换上新闸门。
+  const refreshChapter = useCallback(async (id: string) => {
+    const result = await call<{ state: State }>('state.get');
+    const fresh = result.state.drafts.find(item => item.id === id);
+    // 只合并后端拥有的闸门与验收字段，不用服务端快照盖掉尚未落盘的台词改动。
+    if (fresh) setDraft(current => current.id === id ? { ...current, gate: fresh.gate, qa: fresh.qa } : current);
+  }, [setDraft]);
   const cues = useStoryCueEditing({ draft, setDraft, setDraftPersisted, page });
   const { playingCue, setPlayingCue, cueSelection, selectedCue, selectCue } = cues;
   const { assistantOpen, setAssistantOpen, assistantExpanded, setAssistantExpanded, launcherHidden, showLauncher, assistantHidden, assistantPage, askAssistantPanel, assistantContext, nudge, dismissNudge, actOnNudge } = useAssistantBridge({ state, page, setPage, draft, setDraft, setDraftPersisted, saving, openSettings, selectDraft, cue: cues.focusCue, setError });
@@ -291,10 +298,10 @@ export function WorkbenchChrome({ state, catalog, catalogRevision, engine, ready
             <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><TranscribePage state={state} openSettings={() => openSettings('qwen3-asr-0.6b-q8')} /></Suspense>
           </PageBoundary></VStack> : null}
           {visited.has('reading') ? <VStack id="reading-panel" className="page-panel" gap={0} style={{ display: page === 'reading' ? 'flex' : 'none' }}><PageBoundary name="reading" resetKey={draft.id}>
-            <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><ReadingPage chapterId={draft.id} title={draft.title} subtitles={draft.subtitles} gate={draft.gate} generations={generations} isActive={page === 'reading'} onCueChange={applyCueChange} onError={onError} /></Suspense>
+            <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><ReadingPage chapterId={draft.id} title={draft.title} subtitles={draft.subtitles} gate={draft.gate} generations={generations} isActive={page === 'reading'} onCueChange={applyCueChange} onError={onError} onRefreshChapter={refreshChapter} /></Suspense>
           </PageBoundary></VStack> : null}
           {visited.has('shelf') ? <VStack id="shelf-panel" className="page-panel" gap={0} style={{ display: page === 'shelf' ? 'flex' : 'none' }}><PageBoundary name="shelf">
-            <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><Bookshelf books={state.books} series={state.series} drafts={projectList} history={state.history} onOpen={openChapter} /></Suspense>
+            <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><Bookshelf books={state.books} series={state.series} drafts={projectList} history={state.history} onOpen={openChapter} isActive={page === 'shelf'} onRefreshChapter={refreshChapter} /></Suspense>
           </PageBoundary></VStack> : null}
           {visited.has('cast') ? <VStack id="cast-panel" className="page-panel" gap={0} style={{ display: page === 'cast' ? 'flex' : 'none' }}><PageBoundary name="cast">
             <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><CharacterPage characters={state.characters ?? []} voices={state.voices} drafts={projectList} /></Suspense>

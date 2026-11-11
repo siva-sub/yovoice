@@ -1,4 +1,4 @@
-import { projectKind, type Book, type Draft, type Gate, type Generation, type QARecord, type Series } from '../../shared/workbench';
+import { projectKind, type Book, type Draft, type Gate, type Generation, type QARecord, type QueueItem, type Series } from '../../shared/workbench';
 
 // 书架的派生逻辑：章节阶段、按系列归组与“下一件事”，全部只读状态，不新增后端字段。
 
@@ -59,7 +59,7 @@ export interface ShelfBook { book: Book; chapters: ShelfChapter[]; counts: Stage
 
 export interface ShelfGroup { id: string; title: string; books: ShelfBook[] }
 
-export interface ShelfTask { book: Book; chapter: ShelfChapter; action: ShelfAction }
+export interface ShelfTask { book: Book; chapter: ShelfChapter; action: ShelfAction; /** 服务端队列给出的说明；本地派生时没有。 */ reason?: string }
 
 /** 默认卷的标识与 Go 的 schema.UnfiledBookID 一致；没有归属的章节落到这里。 */
 export const unfiledBookId = 'unfiled';
@@ -108,6 +108,27 @@ export function buildShelf(books: Book[] | undefined, series: Series[] | undefin
   if (unfiled && !standalone.includes(unfiled)) standalone.push(unfiled);
   if (standalone.length) groups.push({ id: '', title: '未分系列', books: standalone.map(book => shelfBook(book, byBook.get(book.id) ?? [], rendered)) });
   return groups;
+}
+
+/** 服务端队列的 kind 与书架动作同名；未知值（将来新增的类型）不渲染。 */
+export function isShelfAction(value: string): value is ShelfAction {
+  return value === 'read' || value === 'verify' || value === 'render' || value === 'qa';
+}
+
+/**
+ * 把服务端待办映射到书架里的章节：按 queue.pending 的先后顺序保留，
+ * 找不到的章节（刚删除或不属于书架）跳过，不用本地动作补齐。
+ */
+export function queueTasks(groups: ShelfGroup[], items: QueueItem[]): ShelfTask[] {
+  const byDraft = new Map<string, { book: Book; chapter: ShelfChapter }>();
+  for (const group of groups) for (const item of group.books) for (const chapter of item.chapters) {
+    byDraft.set(chapter.draft.id, { book: item.book, chapter });
+  }
+  return items.flatMap(item => {
+    const target = byDraft.get(item.draftId);
+    if (!target || !isShelfAction(item.kind)) return [];
+    return [{ ...target, action: item.kind, reason: item.reason }];
+  });
 }
 
 /** 全书架按阅读顺序排列的未完成动作；界面只展示最前面的几件。 */

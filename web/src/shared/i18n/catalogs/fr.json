@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "Distribution"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "Lister les chapitres en attente"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "Liste les chapitres de la bibliothèque qui restent à lire, vérifier, rendre ou contrôler, par livre et numéro de chapitre"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "Quelle est la prochaine étape ?"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "Indique-moi les trois prochaines actions pour la bibliothèque et pourquoi"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "Vérifier ce chapitre"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "Vérifie l'attribution des voix de ce chapitre et liste les lignes à faible confiance"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "Trouver les lignes douteuses"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "Trouve les lignes de ce chapitre dont le locuteur peut être erroné et explique les indices"
   }
 }

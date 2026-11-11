@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "Cast"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "List pending chapters"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "List the chapters on the bookshelf that still need reading, verification, rendering, or QA, ordered by book and chapter number"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "What's next?"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "Tell me the three next steps for the bookshelf and why"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "Verify this chapter"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "Verify the speaker attribution in this chapter and list the low-confidence lines"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "Find suspect lines"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "Find lines in this chapter whose speaker may be wrong and explain the evidence"
   }
 }

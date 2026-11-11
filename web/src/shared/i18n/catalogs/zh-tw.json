@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "角色"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "列出待辦章"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "列出書架上還沒讀、沒校驗、沒渲染、沒驗收的章節，依書和章號排序"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "下一件事"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "告訴我書架上現在最該做的三件事和原因"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "校驗這一章"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "校驗當前這一章的說話人歸因，列出低信賴度的句子"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "找出可疑句"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "找出當前章節裡說話人可能標錯的句子，並說明依據"
   }
 }

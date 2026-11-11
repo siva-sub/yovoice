@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "角色"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "列出待办章"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "列出书架上还没读、没校验、没渲染、没验收的章节，按书和章号排序"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "下一件事"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "告诉我书架上现在最该做的三件事和原因"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "校验这一章"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "校验当前这一章的说话人归因，列出低置信度的句子"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "找出可疑句"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "找出当前章节里说话人可能标错的句子，并说明依据"
   }
 }

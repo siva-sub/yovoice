@@ -9,6 +9,22 @@
   .audiobook-cast-item { flex: none; color: var(--app-ink); }
   .audiobook-help { margin-inline-start: auto; color: var(--app-muted); }
   .audiobook-prompting { color: var(--color-text-accent); }
+  .audiobook-title { min-width: 0; }
+  .audiobook-gate, .audiobook-gate-actions { flex: none; min-width: 0; max-width: 100%; }
+  .audiobook-gate-error { flex-basis: 100%; min-width: 0; overflow-wrap: anywhere; color: var(--color-text-red); }
+  .audiobook-toolbar .audiobook-density { flex: none; width: auto; }
+  .audiobook-toolbar .audiobook-density .astryx-segmented-control-item { min-width: 0; }
+
+  /* 键盘帮助：可关闭的小面板，键位与说明按行折行，窄屏也不撑宽页头。 */
+  .audiobook-keyboard-help {
+    padding: var(--spacing-3);
+    border: var(--border-width) solid var(--app-line);
+    border-radius: var(--radius-element);
+    background: var(--app-surface);
+  }
+  .audiobook-keyboard-head { min-width: 0; }
+  .audiobook-keyboard-items { min-width: 0; color: var(--app-ink); font-size: var(--app-small-font); }
+  .audiobook-keyboard-item { flex: none; }
 
   .audiobook-cues { margin: 0; padding: 0; list-style: none; }
   .audiobook-cue {
@@ -19,11 +35,15 @@
     transition: background var(--duration-fast) var(--ease-standard);
   }
   .audiobook-cue:hover { background: var(--color-background-muted); }
-  .audiobook-cue[aria-current="true"] { background: var(--app-surface); }
+  /* 当前行用左侧色条与更实的底色标出来；低置信度仍保留警告色，同时是当前行时警告色优先。 */
+  .audiobook-cue[aria-current="true"] { background: color-mix(in srgb, var(--app-accent) 14%, var(--app-paper)); box-shadow: inset calc(var(--border-width) * 3) 0 0 var(--app-accent); }
   /* 左侧色条画在行内，不用边框占据宽度，折叠展开时列宽不跳。 */
   .audiobook-cue[data-low-confidence="true"] { box-shadow: inset calc(var(--border-width) * 3) 0 0 var(--color-warning); }
-  .audiobook-cue[data-low-confidence="true"][aria-current="true"] { background: var(--color-warning-muted); }
+  .audiobook-cue[data-low-confidence="true"][aria-current="true"] { background: var(--color-warning-muted); box-shadow: inset calc(var(--border-width) * 3) 0 0 var(--color-warning); }
   .audiobook-cue[data-prompting="true"] { background: var(--color-accent-muted); }
+  /* 行密度：舒适保留原来的两行高度，紧凑把行距与上下留白收紧。 */
+  .audiobook-cues[data-density="compact"] .audiobook-cue { padding-block: var(--spacing-1); }
+  .audiobook-cues[data-density="compact"] .audiobook-text { line-height: 1.45; }
 
   .audiobook-index {
     flex: none;
@@ -55,6 +75,7 @@
   .audiobook-text {
     flex: 1;
     min-width: 0;
+    overflow-wrap: anywhere;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -133,6 +154,7 @@
   .audiobook-shelf-header, .audiobook-cast-header { min-width: 0; }
   .audiobook-shelf-content, .audiobook-cast-content {
     width: 100%;
+    min-width: 0;
     max-width: calc(var(--spacing-10) * 24);
     margin-inline: auto;
     padding: var(--spacing-5) var(--spacing-6) var(--spacing-8);
@@ -149,7 +171,10 @@
   .audiobook-next-item:first-child { border-block-start: 0; }
   .audiobook-next-index { flex: none; width: var(--spacing-6); color: var(--app-muted); text-align: end; }
   .audiobook-next-body { flex: 1; min-width: 0; }
-  .audiobook-next-action { flex: none; }
+  .audiobook-next-title, .audiobook-book-title, .audiobook-series-title { min-width: 0; max-width: 100%; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .audiobook-next-actions { flex: none; }
+  .audiobook-queue-source { flex: none; color: var(--app-muted); text-align: end; }
+  .audiobook-action-error { color: var(--color-text-red); }
 
   .audiobook-shelf-series { flex: none; }
   .audiobook-book {
@@ -159,13 +184,33 @@
     background: var(--app-surface);
   }
   .audiobook-book-head { min-width: 0; }
-  .audiobook-book-progress { margin-inline-start: auto; color: var(--app-muted); }
+  .audiobook-book-progress { margin-inline-start: auto; min-width: 0; color: var(--app-muted); }
+  .audiobook-progress-bar { flex: none; width: calc(var(--spacing-10) * 2); }
   .audiobook-chapter-rows { margin: 0; padding: 0; list-style: none; }
-  .audiobook-chapter-row { padding-block: var(--spacing-2); border-block-start: var(--border-width) solid var(--app-line); }
+  .audiobook-chapter-row { border-block-start: var(--border-width) solid var(--app-line); }
   .audiobook-chapter-row:first-child { border-block-start: 0; }
+  .audiobook-chapter-row[data-active="true"] { background: var(--color-background-muted); }
+  /* 整行是一个按钮：点击与回车打开章节，上下键在行间移动；内边距放在按钮里，焦点框覆盖整行。 */
+  .audiobook-chapter-open {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    width: 100%;
+    min-width: 0;
+    padding: var(--spacing-2) var(--spacing-1);
+    border: 0;
+    border-radius: var(--radius-inner);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .audiobook-chapter-open:focus-visible { outline: var(--focus-outline-width) solid var(--focus-outline-color); outline-offset: calc(var(--spacing-1) * -1); }
   .audiobook-chapter-no { flex: none; width: var(--spacing-6); color: var(--app-muted); text-align: end; }
   .audiobook-chapter-title { flex: 1; min-width: 0; }
-  .audiobook-chapter-meta { flex: none; color: var(--app-muted); }
+  .audiobook-chapter-title-text { display: block; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .audiobook-chapter-meta { flex: none; color: var(--app-muted); white-space: nowrap; }
   .audiobook-chapter-stage { flex: none; color: var(--app-muted); font-size: var(--app-small-font); }
   .audiobook-chapter-stage[data-stage="rendered"] { color: var(--color-text-accent); }
   .audiobook-chapter-stage[data-stage="qa"] { color: var(--color-success); }
@@ -188,4 +233,21 @@
   }
   .audiobook-candidate-empty { border-style: dashed; color: var(--app-muted); }
   .audiobook-alias { flex: none; }
+
+  /* 窄屏：页头与列表允许折行；章节行把标题单独放一行，长标题截断而不是撑宽页面。 */
+  @media (max-width: 900px) {
+    .audiobook-shelf-content, .audiobook-cast-content { padding: var(--spacing-4) var(--spacing-4) var(--spacing-6); }
+    .audiobook-queue-source { flex-basis: 100%; text-align: start; }
+    .audiobook-next-item { flex-wrap: wrap; }
+    .audiobook-next-body { flex: 1 1 100%; }
+    .audiobook-next-actions { flex: 1 1 100%; justify-content: flex-end; }
+    .audiobook-chapter-open { flex-wrap: wrap; row-gap: var(--spacing-1); }
+    .audiobook-chapter-title { flex: 1 1 100%; }
+    .audiobook-book-title { flex-basis: 100%; }
+    .audiobook-book-progress { margin-inline-start: 0; }
+    .audiobook-toolbar { gap: var(--spacing-2); }
+    .audiobook-cue { padding-inline: var(--spacing-3); }
+    .audiobook-speaker { width: calc(var(--spacing-8) * 2); }
+    .audiobook-keyboard-items { gap: var(--spacing-2); }
+  }
 }

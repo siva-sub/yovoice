@@ -4858,5 +4858,29 @@
   },
   "@yovoice.nav.cast": {
     "defaultMessage": "캐스트"
+  },
+  "@yovoice.assistant.chip.pending": {
+    "defaultMessage": "대기 중인 장 나열"
+  },
+  "@yovoice.assistant.chip.pendingPrompt": {
+    "defaultMessage": "책장에서 아직 읽기, 검증, 렌더링, QA가 필요한 장을 책과 장 번호순으로 나열해 주세요"
+  },
+  "@yovoice.assistant.chip.next": {
+    "defaultMessage": "다음 할 일"
+  },
+  "@yovoice.assistant.chip.nextPrompt": {
+    "defaultMessage": "책장에서 지금 가장 먼저 할 세 가지 작업과 이유를 알려 주세요"
+  },
+  "@yovoice.assistant.chip.verifyChapter": {
+    "defaultMessage": "이 장 검증"
+  },
+  "@yovoice.assistant.chip.verifyChapterPrompt": {
+    "defaultMessage": "현재 장의 화자 배정을 검증하고 신뢰도가 낮은 줄을 나열해 주세요"
+  },
+  "@yovoice.assistant.chip.suspect": {
+    "defaultMessage": "의심스러운 줄 찾기"
+  },
+  "@yovoice.assistant.chip.suspectPrompt": {
+    "defaultMessage": "이 장에서 화자가 잘못 지정되었을 수 있는 줄과 근거를 찾아 주세요"
   }
 }
