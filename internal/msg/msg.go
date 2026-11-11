@@ -16,9 +16,11 @@ const (
 	ActivitySubtitle          Code = "@yovoice.subtitle.progress"
 	// ErrChapterNotVerified 是章节未确认读过（未过闸门）时拒绝渲染。
 	ErrChapterNotVerified Code = "@yovoice.error.chapterNotVerified"
-	ErrVoiceReferenced    Code = "@yovoice.error.voiceReferenced"
-	ErrVoiceInUse         Code = "@yovoice.error.voiceInUse"
-	ErrCharacterInvalid   Code = "@yovoice.error.characterInvalid"
+	// ErrRenderBudgetExceeded 是预计成本超过计算单元结余、且未显式覆盖时拒绝批量渲染。
+	ErrRenderBudgetExceeded Code = "@yovoice.error.renderBudgetExceeded"
+	ErrVoiceReferenced      Code = "@yovoice.error.voiceReferenced"
+	ErrVoiceInUse           Code = "@yovoice.error.voiceInUse"
+	ErrCharacterInvalid     Code = "@yovoice.error.characterInvalid"
 
 	ErrOmniReferenceRequired    Code = "@yovoice.error.omniReferenceRequired"
 	ErrReferenceTextRequired    Code = "@yovoice.error.referenceTextRequired"
@@ -259,7 +261,7 @@ func Encode(err error) map[string]any {
 
 // All lists every Code constant for catalog coverage checks.
 func All() []Code {
-	return []Code{ErrProjectPackage, ErrProjectPackageLimit, ErrTimelineImportDuration, ErrTimelineInvalid, ErrTimelineInUse, ErrSubtitleInvalid, ErrChapterNotVerified, ActivitySubtitle,
+	return []Code{ErrProjectPackage, ErrProjectPackageLimit, ErrTimelineImportDuration, ErrTimelineInvalid, ErrTimelineInUse, ErrSubtitleInvalid, ErrChapterNotVerified, ErrRenderBudgetExceeded, ActivitySubtitle,
 		ErrVoiceInUse, ErrVoiceReferenced, ErrCharacterInvalid,
 		ErrOmniReferenceRequired, ErrReferenceTextRequired, ErrXTTSReferenceDuration,
 		ErrVoiceDescriptionRequired, ErrOmniAttributes, ErrSpeakerInvalid,

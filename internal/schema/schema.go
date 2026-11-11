@@ -163,6 +163,15 @@ type Book struct {
 	UpdatedAt      string `json:"updatedAt,omitempty"`
 }
 
+// Series 是系列：多卷共享角色与音色策略的作用域（ADR-0014）；卷通过 Book.SeriesID 归属。
+// 同名角色只在同一系列内视为同一人，跨系列必须各自维护锚点。
+type Series struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	CreatedAt string `json:"createdAt,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
+}
+
 type Draft struct {
 	Performance *CharacterPerformance `json:"performance,omitempty"`
 	SynthesisSettings
@@ -389,6 +398,7 @@ type State struct {
 	Previews              []CharacterPreview  `json:"previews"`
 	Drafts                []Draft             `json:"drafts"`
 	Books                 []Book              `json:"books"`
+	Series                []Series            `json:"series"`
 	Voices                []Voice             `json:"voices"`
 	Models                []InstalledModel    `json:"models"`
 	History               []Generation        `json:"history"`
@@ -491,5 +501,5 @@ func DefaultBooks() []Book {
 }
 
 func DefaultState() State {
-	return State{Characters: []Character{}, Previews: []CharacterPreview{}, Drafts: []Draft{DefaultDraft()}, Books: DefaultBooks(), Voices: []Voice{}, Models: []InstalledModel{}, History: []Generation{}, Preferences: Preferences{DownloadSource: "modelscope", Backend: "cpu"}}
+	return State{Characters: []Character{}, Previews: []CharacterPreview{}, Drafts: []Draft{DefaultDraft()}, Books: DefaultBooks(), Series: []Series{}, Voices: []Voice{}, Models: []InstalledModel{}, History: []Generation{}, Preferences: Preferences{DownloadSource: "modelscope", Backend: "cpu"}}
 }
