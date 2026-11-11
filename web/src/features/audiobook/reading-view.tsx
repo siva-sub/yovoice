@@ -7,12 +7,14 @@ import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/Segme
 import { Tooltip } from '@astryxdesign/core/Tooltip';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Keyboard, Play, Square, Undo2, X } from 'lucide-react';
+import { call } from '../../shared/lib/client';
 import { readLocal, writeLocal } from '../../shared/lib/local-store';
 import type { Gate, SubtitleCue, SubtitleDocument } from '../../shared/workbench';
 import {
-  cueKind, evidenceLabel, evidenceMark, kindLabels, kindMarks, reviewable, reviewQueue, reviewTarget,
+  cueKind, evidenceLabel, evidenceMark, kindKeys, kindLabels, kindMarks, reviewable, reviewQueue, reviewTarget,
   speakerName, speakerKeys,
 } from './reading-model';
+import type { CueKind } from './reading-model';
 import { gateLabels } from './shelf-model';
 import { usePrompter } from './prompter';
 
@@ -21,6 +23,8 @@ export interface CueReassignment {
   index: number;
   cueId?: string;
   speakerId: string;
+  /** 只改类型时带上；不传表示类型不变。 */
+  kind?: CueKind;
   confidence?: number;
 }
 
@@ -35,6 +39,8 @@ export interface AudiobookReadingViewProps {
   gateActions?: ReactNode;
   /** 每次改派、接受或撤销后回调；接入时写回 draft.subtitles。 */
   onCueChange?: (change: CueReassignment) => void;
+  /** 批量改派一次写回；不提供时逐条调用 onCueChange。 */
+  onCuesChange?: (changes: CueReassignment[]) => void;
   /** 提词器播放一句的接口；接入音频后在这里播放，未提供时只走高亮。 */
   playCue?: (cue: SubtitleCue, index: number) => void;
   /** 页面是否可见；接入导航后切到其他页时全局键位不再改派，默认可见。 */
@@ -47,10 +53,13 @@ export function AudiobookReadingView(props: AudiobookReadingViewProps) {
   return <ReadingChapter key={props.chapterId} {...props} />;
 }
 
-interface Assignment { speakerId: string; confidence?: number }
+interface Assignment { speakerId: string; kind?: CueKind; confidence?: number }
 interface UndoEntry extends Assignment { index: number }
 
-function ReadingChapter({ subtitles, title, gate, gateActions, onCueChange, playCue, isActive = true }: AudiobookReadingViewProps) {
+/** 批量改派失败时的提示：本地已经逐条改过，不能装作什么都没发生。 */
+const batchFallbackNotice = '批量接口未接，已逐条修改';
+
+function ReadingChapter({ chapterId, subtitles, title, gate, gateActions, onCueChange, onCuesChange, playCue, isActive = true }: AudiobookReadingViewProps) {
   const cues = subtitles.cues;
   // 键位在进入章节时按首次出场顺序固定，之后改派不重排。
   const [cast] = useState(() => speakerKeys(subtitles.speakers, cues));
@@ -62,6 +71,10 @@ function ReadingChapter({ subtitles, title, gate, gateActions, onCueChange, play
   const prompter = usePrompter(cues, playCue);
   const [density, setDensity] = useState<'compact' | 'comfortable'>(() => readLocal('yovoice-reading-density') === 'compact' ? 'compact' : 'comfortable');
   const [helpOpen, setHelpOpen] = useState(false);
+  // 选区模式：V 进入，J/K 移动末端扩展（anchor 不动，逆序时选区自动取两者之间），回车弹出动作条。
+  const [selection, setSelection] = useState<{ anchor: number; end: number } | null>(null);
+  const [selectionActions, setSelectionActions] = useState(false);
+  const [batchNotice, setBatchNotice] = useState('');
   const shownGate = gate?.status ?? 'pending';
   function changeDensity(value: string) {
     const next = value === 'compact' ? 'compact' : 'comfortable';
@@ -71,10 +84,11 @@ function ReadingChapter({ subtitles, title, gate, gateActions, onCueChange, play
 
   const currentCues = cues.map((cue, index) => {
     const assignment = overrides[index];
-    return assignment ? { ...cue, speakerId: assignment.speakerId, confidence: assignment.confidence } : cue;
+    return assignment ? { ...cue, speakerId: assignment.speakerId, kind: assignment.kind ?? cue.kind, confidence: assignment.confidence } : cue;
   });
   const queue = reviewQueue(currentCues);
   const queuePosition = active === null ? 0 : queue.indexOf(active) + 1;
+  const selectedRows = new Set(selection ? Array.from({ length: Math.abs(selection.end - selection.anchor) + 1 }, (_, offset) => Math.min(selection.anchor, selection.end) + offset) : []);
 
   function speakerAt(index: number) {
     return overrides[index] ? overrides[index].speakerId : cues[index].speakerId;
@@ -82,21 +96,30 @@ function ReadingChapter({ subtitles, title, gate, gateActions, onCueChange, play
   function confidenceAt(index: number) {
     return overrides[index] ? overrides[index].confidence : cues[index].confidence;
   }
+  // 撤销要恢复原来的类型；没有人工改过时按正文推断，与界面显示的一致。
+  function kindAt(index: number): CueKind {
+    return overrides[index]?.kind ?? cueKind(cues[index]);
+  }
   // 所有键盘改动走这里：先记下旧值供撤销，再写本地状态并通知外部保存。
   function commit(index: number, next: Assignment) {
-    undoStack.current.push({ index, speakerId: speakerAt(index), confidence: confidenceAt(index) });
+    undoStack.current.push({ index, speakerId: speakerAt(index), kind: kindAt(index), confidence: confidenceAt(index) });
     if (undoStack.current.length > 200) undoStack.current.shift();
     setOverrides(current => ({ ...current, [index]: next }));
     setActive(index);
-    onCueChange?.({ index, cueId: cues[index].id, speakerId: next.speakerId, confidence: next.confidence });
+    onCueChange?.({ index, cueId: cues[index].id, speakerId: next.speakerId, kind: next.kind, confidence: next.confidence });
   }
   function assignSpeaker(speakerId: string) {
     if (active === null) return;
-    commit(active, { speakerId, confidence: undefined });
+    commit(active, { speakerId, kind: overrides[active]?.kind, confidence: undefined });
+  }
+  // 改类型不清空说话人（旧流程的覆盖键也把 kind 与 speaker 分开记）；与改派一样清空置信度。
+  function assignKind(kind: CueKind) {
+    if (active === null) return;
+    commit(active, { speakerId: speakerAt(active), kind, confidence: undefined });
   }
   function accept() {
     if (active === null || confidenceAt(active) === undefined) return;
-    commit(active, { speakerId: speakerAt(active), confidence: undefined });
+    commit(active, { speakerId: speakerAt(active), kind: overrides[active]?.kind, confidence: undefined });
   }
   function undo() {
     const entry = undoStack.current.pop();
@@ -104,7 +127,60 @@ function ReadingChapter({ subtitles, title, gate, gateActions, onCueChange, play
     const { index, ...assignment } = entry;
     setOverrides(current => ({ ...current, [index]: assignment }));
     setActive(index);
-    onCueChange?.({ index, cueId: cues[index].id, speakerId: assignment.speakerId, confidence: assignment.confidence });
+    onCueChange?.({ index, cueId: cues[index].id, speakerId: assignment.speakerId, kind: assignment.kind, confidence: assignment.confidence });
+  }
+
+  function toggleSelection() {
+    setBatchNotice('');
+    if (selection) { setSelection(null); setSelectionActions(false); return; }
+    if (!cues.length) return;
+    const anchor = active ?? 0;
+    setActive(anchor);
+    setSelection({ anchor, end: anchor });
+  }
+  function extendSelection(step: 1 | -1) {
+    if (!selection) return;
+    const end = Math.min(cues.length - 1, Math.max(0, selection.end + step));
+    setSelection({ ...selection, end });
+    setActive(end);
+  }
+  function closeSelection() {
+    if (selectionActions) { setSelectionActions(false); return; }
+    setSelection(null);
+  }
+  // 批量改派：先记撤销、写本地并通知外部，再尝试批量接口；接口不存在时逐条修改已经生效，只补一条提示。
+  async function applySelection(assignment: { speakerId?: string; kind?: CueKind }) {
+    if (!selection) return;
+    const indexes = [...selectedRows];
+    if (!indexes.length) return;
+    const changes = indexes.map((index): CueReassignment => ({
+      index,
+      cueId: cues[index].id,
+      speakerId: assignment.speakerId ?? speakerAt(index),
+      // 只改说话人时保留之前的人工类型决定，不能退回原文推断。
+      kind: assignment.kind ?? overrides[index]?.kind,
+      confidence: undefined,
+    }));
+    for (const change of changes) undoStack.current.push({ index: change.index, speakerId: speakerAt(change.index), kind: kindAt(change.index), confidence: confidenceAt(change.index) });
+    if (undoStack.current.length > 200) undoStack.current.splice(0, undoStack.current.length - 200);
+    setOverrides(current => {
+      const next = { ...current };
+      for (const change of changes) next[change.index] = { speakerId: change.speakerId, kind: change.kind, confidence: undefined };
+      return next;
+    });
+    setActive(indexes[indexes.length - 1]);
+    if (onCuesChange) onCuesChange(changes); else for (const change of changes) onCueChange?.(change);
+    setSelection(null);
+    setSelectionActions(false);
+    // 没有 cue id 的旧数据无法交给批量接口，按 RPC 不可用处理。
+    const cueIds = changes.map(change => change.cueId);
+    if (cueIds.some(id => !id)) { setBatchNotice(batchFallbackNotice); return; }
+    try {
+      await call('draft.reassignCues', { id: chapterId, cueIds, speakerId: assignment.speakerId ?? '', kind: assignment.kind ?? '' });
+      setBatchNotice('');
+    } catch {
+      setBatchNotice(batchFallbackNotice);
+    }
   }
 
   // 快捷键在页面任意位置生效；页面被导航切走时让给当前页面。焦点在输入框里时让给输入框自身的编辑操作。
@@ -115,12 +191,36 @@ function ReadingChapter({ subtitles, title, gate, gateActions, onCueChange, play
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); undo(); return; }
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     const key = event.key.toLowerCase();
+    // 选区模式先接管 J/K/回车/Esc 与动作条里的单键，避免扩展选区时误改当前行。
+    if (key === 'escape') {
+      if (!selection) return;
+      event.preventDefault();
+      closeSelection();
+      return;
+    }
+    if (key === 'v') { event.preventDefault(); toggleSelection(); return; }
+    if (selection) {
+      if (key === 'j' || key === 'k') { event.preventDefault(); extendSelection(key === 'j' ? 1 : -1); return; }
+      if (key === 'enter') { event.preventDefault(); setBatchNotice(''); setSelectionActions(true); return; }
+      if (selectionActions) {
+        if (key === '0') { event.preventDefault(); void applySelection({ speakerId: '' }); return; }
+        if (key.length === 1 && key >= '1' && key <= '9') {
+          const speaker = cast.find(item => item.key === key);
+          if (speaker) { event.preventDefault(); void applySelection({ speakerId: speaker.speakerId }); }
+          return;
+        }
+        const kind = kindKeys[key as keyof typeof kindKeys];
+        if (kind) { event.preventDefault(); void applySelection({ kind }); }
+      }
+      return;
+    }
     if (key.length === 1 && key >= '0' && key <= '9') {
       if (key === '0') { event.preventDefault(); assignSpeaker(''); return; }
       const speaker = cast.find(item => item.key === key);
       if (speaker) { event.preventDefault(); assignSpeaker(speaker.speakerId); }
       return;
     }
+    if (key === 'd' || key === 'n' || key === 't') { event.preventDefault(); assignKind(kindKeys[key]); return; }
     if (key === 'j' || key === 'k') {
       event.preventDefault();
       const next = reviewTarget(currentCues, active, key === 'j' ? 1 : -1);
@@ -180,8 +280,18 @@ function ReadingChapter({ subtitles, title, gate, gateActions, onCueChange, play
           <Text type="label">{item.name}</Text>
         </HStack>)}
         <HStack className="audiobook-cast-item" gap={1} vAlign="center"><Kbd keys="0" /><Text type="label">旁白</Text></HStack>
-        <Text className="audiobook-help" type="supporting">J/K 复核 · A 接受 · Ctrl+Z 撤销</Text>
+        <Text className="audiobook-help" type="supporting">J/K 复核 · A 接受 · Ctrl+Z 撤销 · D/N/T 类型 · V 选区</Text>
       </HStack>
+      {selection ? <HStack className="audiobook-selection" gap={2} vAlign="center" wrap="wrap" role="status" data-testid="audiobook-selection">
+        <Text type="label">已选 {selectedRows.size} 句</Text>
+        <Text type="supporting">第 {Math.min(selection.anchor, selection.end) + 1}–{Math.max(selection.anchor, selection.end) + 1} 句 · J/K 扩展 · {selectionActions ? '选说话人或类型' : '回车选择动作'} · Esc 取消</Text>
+        {selectionActions ? <HStack className="audiobook-selection-actions" gap={1} vAlign="center" wrap="wrap" role="toolbar" aria-label="批量改派" data-testid="audiobook-selection-bar">
+          {cast.map(item => <Button key={item.speakerId} size="sm" variant="secondary" label={`设为 ${item.name}`} onClick={() => void applySelection({ speakerId: item.speakerId })} />)}
+          <Button size="sm" variant="secondary" label="设为旁白" onClick={() => void applySelection({ speakerId: '' })} />
+          {(['dialogue', 'narration', 'thought'] as const).map(kind => <Button key={kind} size="sm" variant="secondary" label={`设为${kindLabels[kind]}`} onClick={() => void applySelection({ kind })} />)}
+        </HStack> : null}
+      </HStack> : null}
+      {batchNotice ? <Text className="audiobook-batch-notice" type="supporting" role="status" data-testid="audiobook-batch-notice">{batchNotice}</Text> : null}
       {helpOpen ? <VStack className="audiobook-keyboard-help" gap={2} role="region" aria-label="键盘帮助" data-testid="audiobook-keyboard-help">
         <HStack className="audiobook-keyboard-head" hAlign="between" vAlign="center" gap={2}>
           <Text type="label">键盘帮助</Text>
@@ -190,9 +300,16 @@ function ReadingChapter({ subtitles, title, gate, gateActions, onCueChange, play
         <HStack className="audiobook-keyboard-items" gap={3} wrap="wrap">
           <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="1" /><Text type="supporting">–</Text><Kbd keys="9" /><Text type="label">改派给对应说话人</Text></HStack>
           <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="0" /><Text type="label">改派给旁白</Text></HStack>
+          <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="d" /><Text type="label">设为对白</Text></HStack>
+          <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="n" /><Text type="label">设为叙述</Text></HStack>
+          <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="t" /><Text type="label">设为心声</Text></HStack>
           <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="j" /><Text type="label">下一处复核</Text></HStack>
           <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="k" /><Text type="label">上一处复核</Text></HStack>
           <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="a" /><Text type="label">接受当前归因</Text></HStack>
+          <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="v" /><Text type="label">进入或退出选区</Text></HStack>
+          <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="j" /><Text type="supporting">/</Text><Kbd keys="k" /><Text type="label">选区内扩展选区</Text></HStack>
+          <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="enter" /><Text type="label">选区动作条</Text></HStack>
+          <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="escape" /><Text type="label">关闭动作条或取消选区</Text></HStack>
           <HStack className="audiobook-keyboard-item" gap={1} vAlign="center"><Kbd keys="mod+z" /><Text type="label">撤销上一次改派</Text></HStack>
         </HStack>
       </VStack> : null}
@@ -209,12 +326,13 @@ function ReadingChapter({ subtitles, title, gate, gateActions, onCueChange, play
         const speakerId = assignment ? assignment.speakerId : cue.speakerId;
         const confidence = assignment ? assignment.confidence : cue.confidence;
         const name = speakerName(subtitles.speakers, speakerId);
-        const kind = cueKind(cue);
+        const kind = cueKind(currentCues[index]);
         const key = cast.find(item => item.speakerId === speakerId)?.key;
         const low = reviewable(confidence);
         const isExpanded = expanded.has(index);
         return <HStack as="li" key={cue.id ?? `cue-${index}`} className="audiobook-cue" data-cue-index={index} data-cue-id={cue.id}
           data-confidence={confidence === undefined ? undefined : confidence} data-low-confidence={low ? 'true' : undefined}
+          data-selected={selectedRows.has(index) ? 'true' : undefined}
           data-prompting={prompter.index === index ? 'true' : undefined} aria-current={active === index ? 'true' : undefined}
           onClick={() => setActive(index)} gap={0} vAlign="start">
           <Text className="audiobook-index" type="code" hasTabularNumbers>{index + 1}</Text>

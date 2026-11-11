@@ -10,6 +10,12 @@
   .audiobook-help { margin-inline-start: auto; color: var(--app-muted); }
   .audiobook-prompting { color: var(--color-text-accent); }
   .audiobook-title { min-width: 0; }
+  /* 成片改派：选区状态与动作条跟在页头，窄屏折行；RPC 不可用时只补一行提示，改动已逐条生效。 */
+  .audiobook-selection { min-width: 0; color: var(--app-ink); }
+  .audiobook-selection-actions { min-width: 0; }
+  .audiobook-batch-notice { color: var(--color-warning); }
+  .audiobook-anchor-warning { color: var(--color-warning); }
+  .audiobook-import-flag { flex: none; color: var(--color-warning); }
   .audiobook-gate, .audiobook-gate-actions { flex: none; min-width: 0; max-width: 100%; }
   .audiobook-gate-error { flex-basis: 100%; min-width: 0; overflow-wrap: anywhere; color: var(--color-text-red); }
   .audiobook-toolbar .audiobook-density { flex: none; width: auto; }
@@ -35,6 +41,8 @@
     transition: background var(--duration-fast) var(--ease-standard);
   }
   .audiobook-cue:hover { background: var(--color-background-muted); }
+  /* 选区模式：选中的行用浅色底，当前行仍用左侧色条标出来。 */
+  .audiobook-cue[data-selected="true"] { background: var(--color-accent-muted); }
   /* 当前行用左侧色条与更实的底色标出来；低置信度仍保留警告色，同时是当前行时警告色优先。 */
   .audiobook-cue[aria-current="true"] { background: color-mix(in srgb, var(--app-accent) 14%, var(--app-paper)); box-shadow: inset calc(var(--border-width) * 3) 0 0 var(--app-accent); }
   /* 左侧色条画在行内，不用边框占据宽度，折叠展开时列宽不跳。 */

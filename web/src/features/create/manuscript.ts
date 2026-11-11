@@ -184,6 +184,55 @@ export function scriptChapters(chapters: ManuscriptChapter[], unknown: string): 
   return [];
 }
 
+/**
+ * 导入自检：拿原文的引号对数与规则拆出的对白行数对账，口径对齐旧流程的 audit_dialogue.py。
+ * 解析器会静默漏掉整章对白，这个对账是导入阶段最该有的检查；只提示，不阻止导入。
+ */
+export type DialogueIssue = 'missed' | 'thin' | 'fabricated';
+
+/** 标记名与 audit_dialogue.py 的输出一致，方便对照旧流程的日志。 */
+export const dialogueIssueLabels: Record<DialogueIssue, string> = { missed: 'MISSED?', thin: 'THIN?', fabricated: 'FABRICATED?' };
+
+export const dialogueIssueHints: Record<DialogueIssue, string> = {
+  missed: '原文有引号，但没有拆出对白：整章对白可能被漏掉。',
+  thin: '对白行数明显少于引号对数：可能有一部分对白被归成了旁白。',
+  fabricated: '原文没有引号，却拆出了对白：可能把叙述误判成了台词。',
+};
+
+// “明显偏少”的阈值：对白行数不到引号对数的一半。规则解析器基本逐对产出，
+// 差距到一半以上更像整段被漏掉或整段归成了旁白，而不是个别引号的判断不同。
+const thinDialogueRatio = 0.5;
+
+/** 原文里的引号对数：与 segments 用同一套字符，按段落逐个配对；不要求引号里有文字。 */
+export function quotePairCount(text: string): number {
+  let count = 0;
+  for (const paragraph of text.split(/\n+/)) {
+    for (let i = 0; i < paragraph.length; i++) {
+      const close = quotePairs[paragraph[i]];
+      if (!close) continue;
+      const end = paragraph.indexOf(close, i + 1);
+      if (end > i + 1) { count++; i = end; }
+    }
+  }
+  return count;
+}
+
+/** 三类异常互斥：无引号却有对白是“无中生有”，有引号但对白为 0 是“漏掉”，其余才是“偏少”。 */
+export function dialogueIssue(quotes: number, dialogue: number): DialogueIssue | undefined {
+  if (quotes === 0) return dialogue > 0 ? 'fabricated' : undefined;
+  if (dialogue === 0) return 'missed';
+  return dialogue < quotes * thinDialogueRatio ? 'thin' : undefined;
+}
+
+export interface ChapterDialogueAudit { quotes: number; dialogue: number; issue?: DialogueIssue }
+
+/** 一章的导入自检：原文（含标题与旁白）里的引号对数 vs 拆出的对白行数。 */
+export function auditChapterDialogue(chapter: ManuscriptChapter, lines: Pick<ScriptLine, 'quote'>[]): ChapterDialogueAudit {
+  const quotes = quotePairCount(chapter.text);
+  const dialogue = lines.filter(line => line.quote).length;
+  return { quotes, dialogue, issue: dialogueIssue(quotes, dialogue) };
+}
+
 /** 统计角色：按台词数排序，附一句示例台词用于试听选角。 */
 export function castRoles(chapters: ScriptChapter[], previous: CastRole[] = []): CastRole[] {
   const roles = new Map<string, CastRole>();

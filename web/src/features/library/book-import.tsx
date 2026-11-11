@@ -2,7 +2,9 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { Button } from '@astryxdesign/core/Button';
 import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { HStack, VStack } from '@astryxdesign/core/Layout';
+import { Text } from '@astryxdesign/core/Text';
 import { TextInput } from '@astryxdesign/core/TextInput';
+import { Tooltip } from '@astryxdesign/core/Tooltip';
 import { useTranslator } from '@astryxdesign/core/i18n';
 import { BookOpen, LoaderCircle, Settings2, UsersRound } from 'lucide-react';
 import { AppDialog } from '../../shared/ui/app-dialog';
@@ -12,7 +14,10 @@ import { formatCallError } from '../../shared/i18n/format';
 import { aiServiceHidden, createDraft, formatTime, type Draft, type State } from '../../shared/workbench';
 import { Player } from '../media/player';
 import { SpeakerAvatar } from '../create/subtitles';
-import { bookDrafts, castRoles, manuscriptAccept, proposeCast, readManuscript, scriptChapters, type CastRole, type Manuscript, type ScriptChapter } from '../create/manuscript';
+import {
+  auditChapterDialogue, bookDrafts, castRoles, dialogueIssueHints, dialogueIssueLabels, manuscriptAccept,
+  proposeCast, readManuscript, scriptChapters, type CastRole, type Manuscript, type ScriptChapter,
+} from '../create/manuscript';
 
 // AI 分角色的结果，与 Go 的 workbench.Cast 一致。
 interface CastResult { lines: string[][]; roles: { name: string; gender: string; age: string; description: string }[]; voices: Record<string, string>; failed: number }
@@ -66,6 +71,12 @@ function BookDialog({ book, state, modelId, configureAI, create, close, onError 
   const chapterName = (title: string, index: number) => title || t('@yovoice.book.part', { n: index + 1 });
   const selected = book.chapters.map((c, i) => ({ ...c, title: chapterName(c.title, i) })).filter((_, i) => picked.has(i));
   const totalChars = selected.reduce((sum, c) => sum + c.text.length, 0);
+  // 导入自检：用与分角色相同的规则拆一遍，把原文引号对数与对白行数对账。
+  // 只标记异常，不改变默认勾选，也不阻止导入。
+  const audits = useMemo(() => {
+    const parsed = scriptChapters(book.chapters, unknownKey);
+    return book.chapters.map((chapter, index) => auditChapterDialogue(chapter, parsed[index]?.lines ?? []));
+  }, [book.chapters]);
 
   // 进入选角：规则拆句并识别说话人，按台词多少自动选角。
   function startCasting() {
@@ -162,11 +173,22 @@ function BookDialog({ book, state, modelId, configureAI, create, close, onError 
       <small className="muted">{t('@yovoice.book.selected', { count: picked.size, chars: totalChars.toLocaleString() })}</small>
     </HStack>
     <VStack className="book-chapters" gap={0}>
-      {book.chapters.map((chapter, index) => <HStack key={index} className="book-chapter" gap={3} vAlign="center" hAlign="between">
-        <CheckboxInput size="sm" label={chapterName(chapter.title, index)} value={picked.has(index)} onChange={checked => setPicked(current => { const next = new Set(current); if (checked) next.add(index); else next.delete(index); return next; })} />
-        <small className="muted">{t('@yovoice.app.charCount', { count: chapter.text.length })}</small>
-      </HStack>)}
+      {book.chapters.map((chapter, index) => {
+        const issue = audits[index]?.issue;
+        return <HStack key={index} className="book-chapter" gap={3} vAlign="center" hAlign="between">
+          <CheckboxInput size="sm" label={chapterName(chapter.title, index)} value={picked.has(index)} onChange={checked => setPicked(current => { const next = new Set(current); if (checked) next.add(index); else next.delete(index); return next; })} />
+          <HStack gap={3} vAlign="center">
+            {issue ? <Tooltip content={dialogueIssueHints[issue]} focusTrigger="never">
+              <Text className="audiobook-import-flag" type="code" data-testid="book-chapter-audit" data-issue={issue}>{dialogueIssueLabels[issue]}</Text>
+            </Tooltip> : null}
+            <small className="muted">{t('@yovoice.app.charCount', { count: chapter.text.length })}</small>
+          </HStack>
+        </HStack>;
+      })}
     </VStack>
+    {audits.some(audit => audit.issue) ? <Text type="supporting" data-testid="book-import-audit-note">
+      自检只提示，不阻止导入：MISSED? 原文有引号但对白为 0、THIN? 对白明显少于引号对、FABRICATED? 原文无引号却有对白。
+    </Text> : null}
   </AppDialog>;
 
   return <AppDialog title={t('@yovoice.book.cast')} width={720} onClose={dismiss} closeLabel={t('@yovoice.action.cancel')} busy={busy} error={error} actions={<>
