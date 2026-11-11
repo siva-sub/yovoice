@@ -102,6 +102,40 @@ func Call(ctx context.Context, w *workbench.Workbench, method string, data json.
 			return nil, msg.Err(msg.ErrRequestInvalid, nil)
 		}
 		return true, w.GenerateCue(input.Draft, input.CueID, input.ClipID)
+	case "chapter.confirmRead":
+		return true, w.ConfirmRead(p.ID)
+	case "chapter.verify":
+		var input struct {
+			ID   string `json:"id"`
+			Note string `json:"note"`
+		}
+		if e := json.Unmarshal(data, &input); e != nil {
+			return nil, msg.Err(msg.ErrRequestInvalid, nil)
+		}
+		return true, w.VerifyChapter(input.ID, input.Note)
+	case "chapter.reopen":
+		return true, w.ReopenChapter(p.ID)
+	case "chapter.recordQA":
+		var input struct {
+			ID string          `json:"id"`
+			QA schema.QARecord `json:"qa"`
+		}
+		if e := json.Unmarshal(data, &input); e != nil {
+			return nil, msg.Err(msg.ErrRequestInvalid, nil)
+		}
+		return true, w.RecordQA(input.ID, input.QA)
+	case "queue.pending":
+		var input struct {
+			BookID string `json:"bookId"`
+		}
+		if e := json.Unmarshal(data, &input); e != nil {
+			return nil, msg.Err(msg.ErrRequestInvalid, nil)
+		}
+		items := w.PendingQueue(input.BookID)
+		if items == nil {
+			items = []workbench.QueueItem{}
+		}
+		return items, nil
 	case "draft.delete":
 		return true, w.DeleteDraft(p.ID)
 	case "project.export":

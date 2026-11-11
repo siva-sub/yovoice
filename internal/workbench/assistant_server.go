@@ -6,17 +6,19 @@ import (
 )
 
 // 内置助手的工具集：只开放给助手进程，不暴露给对外 MCP。
-// 作品工具（list/get/create/update/generate/open）立即反映在界面上；删除、下载模型、改设置
+// 作品工具（list/get/create/update/generate/open）立即反映在界面上；有声书流程工具
+// （待办、闸门、改派、验收、混音）与界面按钮走同一批 workbench 方法；删除、下载模型、改设置
 // 只能经 propose_action 提议，由用户在确认卡片上执行；不提供导入导出。
 var assistantTools = []string{
 	"list_works", "get_work", "create_work", "update_work", "generate_work", "get_generation_status", "inspect_audio", "add_timeline_audio",
+	"list_pending_chapters", "verify_chapter", "reassign_cue", "record_qa", "check_mix",
 	"plan_melody", "cover_melody", "transform_melody",
 	"open_work", "open_page", "list_models", "list_voices", "list_characters", "save_character", "status",
 	"get_app_status", "get_recent_errors", "remember_preference", "forget_preference", "propose_action",
 }
 
 // newAssistantServer 构建只给内置助手的 MCP server：status/list_models/list_voices 与对外 MCP 共用定义，
-// 作品工具只在这里注册。
+// 作品工具与有声书流程工具只在这里注册。
 func (w *Workbench) newAssistantServer() *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "yovoice", Version: "1.0.0"}, nil)
 	w.registerStatusTool(server)
@@ -35,6 +37,7 @@ func (w *Workbench) newAssistantServer() *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{Name: "open_page", Description: "让界面切换页面：text（语音生成）、story（故事配音）、music（音乐生成）、sfx（音效生成）、score（编曲）、characters（声音库）、settings（设置）。"}, w.openPageTool)
 	w.registerMusicTools(server)
 	w.registerAudioTools(server)
+	w.registerChapterTools(server)
 	w.registerAgentTools(server)
 	return server
 }

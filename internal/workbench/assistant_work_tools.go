@@ -143,3 +143,105 @@ func (w *Workbench) createWorkTool(ctx context.Context, req *mcp.CallToolRequest
 	diag.Log(w.Store.Root, "assistant.work_created", "project_id", d.ID, "kind", in.Kind)
 	return nil, map[string]any{"id": d.ID, "kind": in.Kind, "title": d.Title}, nil
 }
+
+// 助手的有声书流程工具：看章级待办、推进闸门、改派说话人、写入验收与检查混音。
+// 它们与界面按钮走同一批 workbench 方法，助手不自己改状态，也不绕过闸门。
+
+// registerChapterTools 把有声书流程工具注册到内置助手的 MCP server。
+func (w *Workbench) registerChapterTools(server *mcp.Server) {
+	mcp.AddTool(server, &mcp.Tool{Name: "list_pending_chapters", Description: "列出书级待办：该读、该校验归因、该渲染、该验收的章节，按章号升序。用户问“接下来做什么”“还有哪些章没过”，或你准备调用 verify_chapter 前，先调用它。只读：bookId 留空返回所有书的待办，传入书（卷）ID 只看那一本；每项给出 kind、draftId、chapter 与可直接展示的 reason。"}, w.listPendingChaptersTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "verify_chapter", Description: "把一章的闸门推进到已确认：先记为已读并记录当前正文指纹，再写入校验说明与确认时间。用户通读正文、核对说话人后让你确认时调用；调用它等于替用户声明“这一章已经读过”，不要替用户猜。副作用：闸门状态写入状态库并允许这一章渲染；确认后助手无法撤销，要重新核对只能重开章节（没有对应工具）。"}, w.verifyChapterTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "reassign_cue", Description: "把一句台词改派给另一个说话人。用户指出“这句不是旁白说的”“改成 Jet”时调用；先 get_work 取到 cueId 与说话人 ID。副作用：会清空这句的机器归因置信度（人做过决定后置信度不再有意义），不重新生成音频，已经渲染过的句子要重新渲染才生效。speakerId 必须在该章的说话人列表里，不传或不存在会被拒绝。"}, w.reassignCueTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "record_qa", Description: "写入一章的音频验收结果：WER、整章响度、真峰值、静音段数与判定。用户通听后给出通过或不通过的结论时调用；verdict 取 pass、fail 或 unchecked。副作用：覆盖该章上一份验收记录；判 fail 必须用 note 写清问题，否则会被拒绝。不改变闸门与渲染状态。"}, w.recordQATool)
+	mcp.AddTool(server, &mcp.Tool{Name: "check_mix", Description: "检查故事配音时间线的混音配置：四层音轨（ambience、score、bed、hit）的电平区间、侧链深度与 hit 相对 cue 的提前量，返回问题列表与逐条说明。用户问“混音有没有问题”“电平合不合适”，或准备导出前调用。只读，不修改时间线；没有时间线时返回空列表。"}, w.checkMixTool)
+}
+
+type pendingChaptersInput struct {
+	BookID string `json:"bookId,omitempty" jsonschema:"书（卷）ID，留空返回所有书的待办"`
+}
+
+func (w *Workbench) listPendingChaptersTool(ctx context.Context, req *mcp.CallToolRequest, in pendingChaptersInput) (*mcp.CallToolResult, any, error) {
+	items := w.PendingQueue(in.BookID)
+	if items == nil {
+		items = []QueueItem{}
+	}
+	w.chatCard("list_pending_chapters", fmt.Sprintf("查看了待办章节（%d 件）", len(items)), fmt.Sprintf("Listed pending chapters (%d)", len(items)), "done")
+	return nil, map[string]any{"items": items, "total": len(items)}, nil
+}
+
+type verifyChapterInput struct {
+	ID   string `json:"id" jsonschema:"章节作品 ID"`
+	Note string `json:"note,omitempty" jsonschema:"确认说明，例如通读时发现的问题；留空保留已有说明"`
+}
+
+func (w *Workbench) verifyChapterTool(ctx context.Context, req *mcp.CallToolRequest, in verifyChapterInput) (*mcp.CallToolResult, any, error) {
+	d, err := w.assistantWork(in.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err = w.ConfirmRead(in.ID); err != nil {
+		return nil, nil, err
+	}
+	if err = w.VerifyChapter(in.ID, strings.TrimSpace(in.Note)); err != nil {
+		return nil, nil, err
+	}
+	w.chatCard("verify_chapter", fmt.Sprintf("确认了《%s》的归因", d.Title), fmt.Sprintf("Verified %q", d.Title), "done")
+	return nil, map[string]any{"id": in.ID, "verified": true}, nil
+}
+
+type reassignCueInput struct {
+	DraftID   string `json:"draftId" jsonschema:"章节作品 ID"`
+	CueID     string `json:"cueId" jsonschema:"台词（cue）ID"`
+	SpeakerID string `json:"speakerId" jsonschema:"改派到的说话人 ID，必须在该章的说话人列表里"`
+}
+
+func (w *Workbench) reassignCueTool(ctx context.Context, req *mcp.CallToolRequest, in reassignCueInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(in.SpeakerID) == "" {
+		return nil, nil, fmt.Errorf("speakerId 不能为空：改派必须指定说话人")
+	}
+	d, err := w.assistantWork(in.DraftID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err = w.ReassignCue(in.DraftID, in.CueID, in.SpeakerID); err != nil {
+		return nil, nil, err
+	}
+	w.chatCard("reassign_cue", fmt.Sprintf("改派了《%s》的一句台词", d.Title), fmt.Sprintf("Reassigned a cue in %q", d.Title), "done")
+	return nil, map[string]any{"draftId": in.DraftID, "cueId": in.CueID, "speakerId": in.SpeakerID, "confidenceCleared": true}, nil
+}
+
+type recordQAInput struct {
+	ID       string  `json:"id" jsonschema:"章节作品 ID"`
+	Verdict  string  `json:"verdict" jsonschema:"验收判定：pass（通过）、fail（不通过）或 unchecked（未判定）"`
+	Note     string  `json:"note,omitempty" jsonschema:"判定说明；判定为 fail 时必填，写清问题所在"`
+	WER      float64 `json:"wer,omitempty" jsonschema:"回读词错率 0–1"`
+	LUFS     float64 `json:"lufs,omitempty" jsonschema:"整章响度（LUFS）"`
+	Peak     float64 `json:"peak,omitempty" jsonschema:"真峰值（dBTP）"`
+	Silences int     `json:"silences,omitempty" jsonschema:"2 秒以上的静音段数"`
+}
+
+func (w *Workbench) recordQATool(ctx context.Context, req *mcp.CallToolRequest, in recordQAInput) (*mcp.CallToolResult, any, error) {
+	d, err := w.assistantWork(in.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	record := schema.QARecord{WER: in.WER, LUFS: in.LUFS, Peak: in.Peak, Silences: in.Silences, Verdict: in.Verdict, Note: strings.TrimSpace(in.Note)}
+	if err = w.RecordQA(in.ID, record); err != nil {
+		return nil, nil, err
+	}
+	w.chatCard("record_qa", fmt.Sprintf("写入了《%s》的验收结果", d.Title), fmt.Sprintf("Recorded QA for %q", d.Title), "done")
+	return nil, map[string]any{"id": in.ID, "verdict": record.Verdict}, nil
+}
+
+func (w *Workbench) checkMixTool(ctx context.Context, req *mcp.CallToolRequest, in workIDInput) (*mcp.CallToolResult, any, error) {
+	d, err := w.assistantWork(in.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	issues := CheckMix(d, DefaultMixPolicy())
+	if issues == nil {
+		issues = []MixIssue{}
+	}
+	w.chatCard("check_mix", fmt.Sprintf("检查了《%s》的混音（%d 个问题）", d.Title, len(issues)), fmt.Sprintf("Checked the mix of %q (%d issues)", d.Title, len(issues)), "done")
+	return nil, map[string]any{"issues": issues, "total": len(issues), "clean": len(issues) == 0}, nil
+}
