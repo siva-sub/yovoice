@@ -127,4 +127,65 @@
   .audiobook-take-model { flex: none; color: var(--app-ink); }
   .audiobook-take-time { flex: 1; min-width: 0; color: var(--app-muted); }
   .audiobook-take-duration { flex: none; color: var(--app-muted); }
+
+  /* 书架：顶部是下一件事，下面按系列与卷列出章节进度行。 */
+  .audiobook-shelf, .audiobook-cast-page { height: 100%; min-height: 0; background: var(--app-paper); }
+  .audiobook-shelf-header, .audiobook-cast-header { min-width: 0; }
+  .audiobook-shelf-content, .audiobook-cast-content {
+    width: 100%;
+    max-width: calc(var(--spacing-10) * 24);
+    margin-inline: auto;
+    padding: var(--spacing-5) var(--spacing-6) var(--spacing-8);
+  }
+  .audiobook-next {
+    flex: none;
+    padding: var(--spacing-4);
+    border: var(--border-width) solid var(--app-line);
+    border-radius: var(--radius-element);
+    background: var(--app-surface);
+  }
+  .audiobook-next-list { margin: 0; padding: 0; list-style: none; }
+  .audiobook-next-item { padding-block: var(--spacing-2); border-block-start: var(--border-width) solid var(--app-line); }
+  .audiobook-next-item:first-child { border-block-start: 0; }
+  .audiobook-next-index { flex: none; width: var(--spacing-6); color: var(--app-muted); text-align: end; }
+  .audiobook-next-body { flex: 1; min-width: 0; }
+  .audiobook-next-action { flex: none; }
+
+  .audiobook-shelf-series { flex: none; }
+  .audiobook-book {
+    padding: var(--spacing-4);
+    border: var(--border-width) solid var(--app-line);
+    border-radius: var(--radius-element);
+    background: var(--app-surface);
+  }
+  .audiobook-book-head { min-width: 0; }
+  .audiobook-book-progress { margin-inline-start: auto; color: var(--app-muted); }
+  .audiobook-chapter-rows { margin: 0; padding: 0; list-style: none; }
+  .audiobook-chapter-row { padding-block: var(--spacing-2); border-block-start: var(--border-width) solid var(--app-line); }
+  .audiobook-chapter-row:first-child { border-block-start: 0; }
+  .audiobook-chapter-no { flex: none; width: var(--spacing-6); color: var(--app-muted); text-align: end; }
+  .audiobook-chapter-title { flex: 1; min-width: 0; }
+  .audiobook-chapter-meta { flex: none; color: var(--app-muted); }
+  .audiobook-chapter-stage { flex: none; color: var(--app-muted); font-size: var(--app-small-font); }
+  .audiobook-chapter-stage[data-stage="rendered"] { color: var(--color-text-accent); }
+  .audiobook-chapter-stage[data-stage="qa"] { color: var(--color-success); }
+
+  /* 角色页：角色卡与锚点候选网格。 */
+  .audiobook-cast-card {
+    padding: var(--spacing-4);
+    border: var(--border-width) solid var(--app-line);
+    border-radius: var(--radius-element);
+    background: var(--app-surface);
+  }
+  .audiobook-cast-card-head { min-width: 0; }
+  .audiobook-cast-facts { color: var(--app-muted); }
+  .audiobook-candidate-grid > * { flex: 1 1 0; min-width: 0; }
+  .audiobook-candidate {
+    padding: var(--spacing-3);
+    border: var(--border-width) solid var(--app-line);
+    border-radius: var(--radius-element);
+    background: var(--app-paper);
+  }
+  .audiobook-candidate-empty { border-style: dashed; color: var(--app-muted); }
+  .audiobook-alias { flex: none; }
 }

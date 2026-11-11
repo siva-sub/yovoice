@@ -4852,5 +4852,11 @@
   },
   "@yovoice.error.renderBudgetExceeded": {
     "defaultMessage": "预计渲染成本超过计算单元结余，已阻止开始。可改用更快的模型或减少章节，确认要开始时再显式覆盖。"
+  },
+  "@yovoice.nav.bookshelf": {
+    "defaultMessage": "书架"
+  },
+  "@yovoice.nav.cast": {
+    "defaultMessage": "角色"
   }
 }

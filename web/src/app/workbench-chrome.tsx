@@ -53,6 +53,9 @@ const TimelineEditor = lazy(() => import('../features/media/timeline-editor').th
 const TranscribePage = lazy(() => import('../features/transcribe/transcribe-page').then(module => ({ default: module.TranscribePage })));
 // 归因阅读页带整章阅读与逐句 take，打开时再加载。
 const ReadingPage = lazy(() => import('../features/audiobook/reading-page').then(module => ({ default: module.ReadingPage })));
+// 书架与角色页是只读派生视图，打开时再加载。
+const Bookshelf = lazy(() => import('../features/audiobook/bookshelf').then(module => ({ default: module.Bookshelf })));
+const CharacterPage = lazy(() => import('../features/audiobook/character-page').then(module => ({ default: module.CharacterPage })));
 // 分轨工作台（分轨与转 MIDI 的结果）按需加载。
 const StemStudio = lazy(() => import('../features/music/stem-studio').then(module => ({ default: module.StemStudio })));
 const BookImport = lazy(() => import('../features/library/book-import').then(module => ({ default: module.BookImport })));
@@ -90,6 +93,8 @@ export function WorkbenchChrome({ state, catalog, catalogRevision, engine, ready
     await newDraft(drafts[0]);
   }
   function selectDraft(item: Draft) { run(async () => { if (draftPersisted) await persistDraft(draft); setDraft(item.id === draft.id ? draft : item); setDraftPersisted(true); setPage('create'); }); }
+  // 书架打开某一章：先保存当前作品，再按动作去归因阅读页或章节工作区。
+  function openChapter(item: Draft, target: 'reading' | 'create') { run(async () => { if (draftPersisted) await persistDraft(draft); setDraft(item.id === draft.id ? draft : item); setDraftPersisted(true); setPage(target); }); }
   const cues = useStoryCueEditing({ draft, setDraft, setDraftPersisted, page });
   const { playingCue, setPlayingCue, cueSelection, selectedCue, selectCue } = cues;
   const { assistantOpen, setAssistantOpen, assistantExpanded, setAssistantExpanded, launcherHidden, showLauncher, assistantHidden, assistantPage, askAssistantPanel, assistantContext, nudge, dismissNudge, actOnNudge } = useAssistantBridge({ state, page, setPage, draft, setDraft, setDraftPersisted, saving, openSettings, selectDraft, cue: cues.focusCue, setError });
@@ -287,6 +292,12 @@ export function WorkbenchChrome({ state, catalog, catalogRevision, engine, ready
           </PageBoundary></VStack> : null}
           {visited.has('reading') ? <VStack id="reading-panel" className="page-panel" gap={0} style={{ display: page === 'reading' ? 'flex' : 'none' }}><PageBoundary name="reading" resetKey={draft.id}>
             <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><ReadingPage chapterId={draft.id} title={draft.title} subtitles={draft.subtitles} gate={draft.gate} generations={generations} isActive={page === 'reading'} onCueChange={applyCueChange} onError={onError} /></Suspense>
+          </PageBoundary></VStack> : null}
+          {visited.has('shelf') ? <VStack id="shelf-panel" className="page-panel" gap={0} style={{ display: page === 'shelf' ? 'flex' : 'none' }}><PageBoundary name="shelf">
+            <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><Bookshelf books={state.books} series={state.series} drafts={projectList} history={state.history} onOpen={openChapter} /></Suspense>
+          </PageBoundary></VStack> : null}
+          {visited.has('cast') ? <VStack id="cast-panel" className="page-panel" gap={0} style={{ display: page === 'cast' ? 'flex' : 'none' }}><PageBoundary name="cast">
+            <Suspense fallback={<p className="loading" role="status">{t('@yovoice.app.loading')}</p>}><CharacterPage characters={state.characters ?? []} voices={state.voices} drafts={projectList} /></Suspense>
           </PageBoundary></VStack> : null}
           {visited.has('settings') ? <VStack className="page-panel" gap={0} style={{ display: page === 'settings' ? 'flex' : 'none' }}>
             <PageBoundary name="settings"><Suspense fallback={<p role="status">{t('@yovoice.app.loadingSettings')}</p>}><Settings focus={settingsFocus} state={state} catalog={catalog} engine={engine} draft={draft} run={run} active={page === 'settings'} onError={onError}

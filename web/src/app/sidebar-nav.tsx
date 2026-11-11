@@ -3,7 +3,7 @@ import { ResizeHandle, type ResizableProps } from '@astryxdesign/core/Resizable'
 import { Button } from '@astryxdesign/core/Button';
 import { HStack, StackItem, VStack } from '@astryxdesign/core/Layout';
 import { useTranslator } from '@astryxdesign/core/i18n';
-import { AudioLines, BookOpenText, Captions, ChevronRight, Mic, Music, Pencil, Settings2, Trash2 } from 'lucide-react';
+import { AudioLines, BookOpenText, Captions, ChevronRight, Library, Mic, Music, Pencil, Settings2, Trash2, UsersRound } from 'lucide-react';
 import { featureHidden, projectKind, type Draft, type ModelPackage, type State } from '../shared/workbench';
 import { overflowTitle } from '../shared/ui/overflow-title';
 import { UpdateSidebarCard } from '../features/update/update-notice';
@@ -58,7 +58,7 @@ export function SidebarNav(props: {
     <StackItem ref={indicator} as="span" className="sidebar-indicator" aria-hidden />
     {newDraft}
     <VStack className="sidebar-destinations" gap={2}>
-      {/* 顺序：语音生成、语音转写（同属语音）、故事配音、归因阅读（有字幕时）、音乐生成，最后是我的声音。 */}
+      {/* 顺序：语音生成、语音转写（同属语音）、故事配音、归因阅读（有字幕时）、音乐生成、书架、角色，最后是我的声音。 */}
       {(['text', 'transcribe', 'story', 'reading', 'music'] as const).filter(kind => kind === 'reading' ? !!draft.subtitles : kind === 'text' || !featureHidden(state.preferences, kind)).map(kind => {
         if (kind === 'reading') return <Button key={kind} data-testid="nav-reading" label={t('@yovoice.nav.reading')} variant="ghost" icon={<BookOpenText />} className={`nav-item ${page === 'reading' ? 'selected' : ''}`} aria-current={page === 'reading' ? 'page' : undefined} onClick={() => setPage('reading')} />;
         if (kind === 'transcribe') return <Button key={kind} data-testid="nav-transcribe" label={t('@yovoice.nav.transcribe')} variant="ghost" icon={<Captions />} className={`nav-item ${page === 'transcribe' ? 'selected' : ''}`} aria-current={page === 'transcribe' ? 'page' : undefined} onClick={() => setPage('transcribe')} />;
@@ -67,6 +67,8 @@ export function SidebarNav(props: {
         const selected = group(page) === kind || (projectActive && group(projectKind(draft)) === kind);
         return <Button key={kind} data-testid={`nav-${kind}`} label={t(`@yovoice.project.${kind}`)} variant="ghost" icon={kind === 'text' ? <Mic /> : kind === 'story' ? <Pencil /> : <Music />} className={`nav-item ${selected ? 'selected' : ''}`} aria-current={selected ? 'page' : undefined} onClick={() => setPage(kind)} />;
       })}
+      <Button data-testid="nav-shelf" label={t('@yovoice.nav.bookshelf')} variant="ghost" icon={<Library />} className={`nav-item ${page === 'shelf' ? 'selected' : ''}`} aria-current={page === 'shelf' ? 'page' : undefined} onClick={() => setPage('shelf')} />
+      <Button data-testid="nav-cast" label={t('@yovoice.nav.cast')} variant="ghost" icon={<UsersRound />} className={`nav-item ${page === 'cast' ? 'selected' : ''}`} aria-current={page === 'cast' ? 'page' : undefined} onClick={() => setPage('cast')} />
       <Button data-testid="nav-characters" label={t('@yovoice.nav.characters')} variant="ghost" icon={<AudioLines />} className={`nav-item ${page === 'characters' || page === 'voices' ? 'selected' : ''}`} aria-current={page === 'characters' || page === 'voices' ? 'page' : undefined} onClick={() => setPage('characters')} />
     </VStack>
     <details className="recent-projects" open={recentOpen}>
