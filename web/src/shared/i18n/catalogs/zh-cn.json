@@ -4843,5 +4843,8 @@
   },
   "@yovoice.settings.transcribeIsolateHint": {
     "defaultMessage": "使用 BS-RoFormer 减少背景音乐。需要安装 BS-RoFormer 或歌词对齐模型，处理耗时会增加。"
+  },
+  "@yovoice.error.chapterNotVerified": {
+    "defaultMessage": "本章尚未确认已读，不能开始渲染。请先在归因页确认章节内容。"
   }
 }

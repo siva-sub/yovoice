@@ -4843,5 +4843,8 @@
   },
   "@yovoice.settings.transcribeIsolateHint": {
     "defaultMessage": "Reduziert Hintergrundmusik mit BS-RoFormer. Erfordert BS-RoFormer oder das Modell zur Liedtextausrichtung und dauert länger."
+  },
+  "@yovoice.error.chapterNotVerified": {
+    "defaultMessage": "This chapter has not been confirmed as read. Confirm it before rendering."
   }
 }

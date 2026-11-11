@@ -4843,5 +4843,8 @@
   },
   "@yovoice.settings.transcribeIsolateHint": {
     "defaultMessage": "BS-RoFormer로 배경 음악을 줄입니다. BS-RoFormer 또는 가사 정렬 모델이 필요하며 처리 시간이 늘어납니다."
+  },
+  "@yovoice.error.chapterNotVerified": {
+    "defaultMessage": "This chapter has not been confirmed as read. Confirm it before rendering."
   }
 }

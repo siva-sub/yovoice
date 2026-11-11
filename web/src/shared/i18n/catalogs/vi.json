@@ -4843,5 +4843,8 @@
   },
   "@yovoice.settings.transcribeIsolateHint": {
     "defaultMessage": "Dùng BS-RoFormer để giảm nhạc nền. Cần BS-RoFormer hoặc mô hình căn chỉnh lời bài hát và mất thêm thời gian."
+  },
+  "@yovoice.error.chapterNotVerified": {
+    "defaultMessage": "This chapter has not been confirmed as read. Confirm it before rendering."
   }
 }

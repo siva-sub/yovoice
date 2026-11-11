@@ -4843,5 +4843,8 @@
   },
   "@yovoice.settings.transcribeIsolateHint": {
     "defaultMessage": "Atténue la musique de fond avec BS-RoFormer. Nécessite BS-RoFormer ou le modèle d’alignement des paroles et prend plus de temps."
+  },
+  "@yovoice.error.chapterNotVerified": {
+    "defaultMessage": "This chapter has not been confirmed as read. Confirm it before rendering."
   }
 }

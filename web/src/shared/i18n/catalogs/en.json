@@ -4843,5 +4843,8 @@
   },
   "@yovoice.settings.transcribeIsolateHint": {
     "defaultMessage": "Uses BS-RoFormer to reduce background music. Requires BS-RoFormer or the lyric alignment model and takes extra time."
+  },
+  "@yovoice.error.chapterNotVerified": {
+    "defaultMessage": "This chapter has not been confirmed as read. Confirm it before rendering."
   }
 }

@@ -4843,5 +4843,8 @@
   },
   "@yovoice.settings.transcribeIsolateHint": {
     "defaultMessage": "BS-RoFormer で背景音楽を抑えます。BS-RoFormer または歌詞アライメントモデルが必要で、処理に時間がかかります。"
+  },
+  "@yovoice.error.chapterNotVerified": {
+    "defaultMessage": "This chapter has not been confirmed as read. Confirm it before rendering."
   }
 }

@@ -4843,5 +4843,8 @@
   },
   "@yovoice.settings.transcribeIsolateHint": {
     "defaultMessage": "BS-RoFormer приглушает фоновую музыку. Требуется BS-RoFormer или модель выравнивания текста песни, обработка занимает больше времени."
+  },
+  "@yovoice.error.chapterNotVerified": {
+    "defaultMessage": "This chapter has not been confirmed as read. Confirm it before rendering."
   }
 }
